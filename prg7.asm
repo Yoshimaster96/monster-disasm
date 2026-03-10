@@ -1,5 +1,10 @@
+.ifdef VER_EUR
+	.base $C080
+	.org $C080
+.else ;VER_USA
 	.base $C000
 	.org $C000
+.endif
 
 ;;;;;;;;;;
 ;DMC DATA;
@@ -1184,6 +1189,7 @@ WriteVRAMBufferScrollAttr_Loop:
 	stx VRAMBufferOffset
 	rts
 
+.ifndef VER_EUR
 UpdateFreeMovementScroll:
 	;Enable level scrolling in all directions
 	lda #$0F
@@ -1270,6 +1276,7 @@ UpdateFreeMovementScroll_NoUp:
 	;Update player Y scroll
 	jmp UpdatePlayerScrollYSub
 	rts
+.endif
 
 ;;;;;;;;;;;;;;;;;;
 ;PALETTE ROUTINES;
@@ -1440,7 +1447,6 @@ GetPaletteDataPointer_AnyA:
 	adc PaletteDataPointer+1
 	sta $11
 	rts
-
 PaletteDataPointer:
 	.dw PaletteData
 
@@ -1776,7 +1782,11 @@ IRQJumpTable:
 ;$01: Main game
 IRQSub01:
 	;Wait for HBlank
+.ifdef VER_EUR
+	ldx #$06
+.else ;VER_USA
 	ldx #$08
+.endif
 IRQSub01_WaitHBlank:
 	dex
 	bpl IRQSub01_WaitHBlank
@@ -1899,6 +1909,13 @@ HUDVRAMAttrAddrTable:
 
 ;$03: BG floor scroll
 IRQSub03:
+.ifdef VER_EUR
+	;Wait for HBlank
+	ldx #$0A
+IRQSub03_WaitHBlank:
+	dex
+	bne IRQSub03_WaitHBlank
+.endif
 	;Latch PPU status line
 	lda PPU_STATUS
 	;Set PPU scroll
@@ -1975,7 +1992,11 @@ IRQSub06_WaitHBlank:
 ;$07: Level 4 elevator layer 2
 IRQSub07:
 	;Wait for HBlank
+.ifdef VER_EUR
+	ldx #$1C
+.else ;VER_USA
 	ldx #$1E
+.endif
 IRQSub07_WaitHBlank:
 	dex
 	bne IRQSub07_WaitHBlank
@@ -2007,7 +2028,11 @@ Level4ElevatorVRAMAddrTable:
 ;$11: Level 3 boss layer 1 (boss rush)
 IRQSub08:
 	;Wait for HBlank
+.ifdef VER_EUR
+	ldx #$07
+.else ;VER_USA
 	ldx #$09
+.endif
 IRQSub08_WaitHBlank:
 	dex
 	bne IRQSub08_WaitHBlank
@@ -2072,7 +2097,11 @@ IRQSub12:
 	stx $8000
 	sta $8001
 	;Wait for HBlank
+.ifdef VER_EUR
+	ldx #$05
+.else ;VER_USA
 	ldx #$07
+.endif
 IRQSub12_WaitHBlank:
 	dex
 	bne IRQSub12_WaitHBlank
@@ -2213,7 +2242,11 @@ IRQSub0D_WaitHBlank:
 ;$0E: Level 4 boss crane
 IRQSub0E:
 	;Wait for HBlank
+.ifdef VER_EUR
+	ldx #$0A
+.else ;VER_USA
 	ldx #$0B
+.endif
 IRQSub0E_WaitHBlank:
 	dex
 	bne IRQSub0E_WaitHBlank
@@ -2254,7 +2287,11 @@ IRQSub0F_WaitHBlank:
 ;$10: Level 6 elevator
 IRQSub10:
 	;Wait for HBlank
+.ifdef VER_EUR
+	ldx #$1C
+.else ;VER_USA
 	ldx #$1E
+.endif
 IRQSub10_WaitHBlank:
 	dex
 	bne IRQSub10_WaitHBlank
@@ -2285,7 +2322,11 @@ Level6ElevatorVRAMAddrTable:
 ;$13: TV face wave
 IRQSub13:
 	;Wait for HBlank
+.ifdef VER_EUR
+	ldx #$01
+.else ;VER_USA
 	ldx #$02
+.endif
 IRQSub13_WaitHBlank1:
 	dex
 	bne IRQSub13_WaitHBlank1
@@ -3211,6 +3252,7 @@ RunGameMode_Demo_Main:
 	;Check for end of demo
 	lda DemoEndFlag
 	bne RunGameMode_Demo_EndDemo
+	;Decrement timer, check if 0
 	jsr DecrementModeTimer
 	beq RunGameMode_Demo_EndDemo
 	;Update demo input
@@ -4381,6 +4423,61 @@ VRAMStrip0FData:
 	.db $9C,$8E,$8E,$00,$A2,$98,$9E,$00,$97,$8E,$A1,$9D,$00,$A0,$92,$97
 	.db $9D,$8E,$9B
 	.db $FF
+
+.ifdef VER_EUR
+VRAMStrip10Data:
+	.dw $2044
+	.db $96,$98,$97,$9C,$9D,$8E,$9B,$00,$92,$97,$00,$00,$96,$A2,$00,$00
+	.db $99,$98,$8C,$94,$8E,$9D,$A4,$A5
+	.db $FE
+	.dw $2084
+	.db $95,$98,$90,$98,$00,$00,$B2,$97,$8D,$00,$00,$B2,$95,$95,$00,$8C
+	.db $91,$B2,$9B,$B2,$8C,$9D,$8E,$9B
+	.db $FE
+	.dw $20C4
+	.db $8D,$8E,$9C,$92,$90,$97,$9C,$00,$B2,$9B,$8E,$00,$98,$A0,$97,$8E
+	.db $8D,$00,$8B,$A2,$00,$B2,$97,$8D
+	.db $FE
+	.dw $2104
+	.db $9E,$9C,$8E,$8D,$00,$9E,$97,$8D,$8E,$9B,$00,$95,$92,$8C,$8E,$97
+	.db $9C,$8E,$00,$00,$8F,$9B,$98,$96
+	.db $FE
+	.dw $2144
+	.db $96,$98,$9B,$9B,$92,$9C,$98,$97,$00,$8E,$97,$9D,$8E,$9B,$9D,$B2
+	.db $92,$97,$96,$8E,$97,$9D
+	.db $FE
+	.dw $2184
+	.db $90,$9B,$98,$9E,$99,$A6,$92,$97,$8C,$A7
+	.db $FE
+	.dw $21C4
+	.db $B1,$00,$82,$8A,$8A,$82,$00,$00,$96,$98,$9B,$9B,$92,$9C,$98,$97
+	.db $FF
+VRAMStrip11Data:
+	.dw $2204
+	.db $8E,$97,$9D,$8E,$9B,$9D,$B2,$92,$97,$96,$8E,$97,$9D,$00,$90,$9B
+	.db $98,$9E,$99,$A6,$92,$97,$8C,$A7
+	.db $FE
+	.dw $2244
+	.db $B2,$95,$95,$00,$9B,$92,$90,$91,$9D,$9C,$00,$9B,$8E,$9C,$8E,$9B
+	.db $9F,$8E,$8D,$A7
+	.db $FE
+	.dw $22A2
+	.db $9D,$96,$00,$B2,$97,$8D,$00,$B1,$82,$8A,$8A,$83,$00,$94,$98,$97
+	.db $B2,$96,$92,$00,$8C,$98,$A7,$A6,$95,$9D,$8D,$A7
+	.db $FE
+	.dw $22E6
+	.db $95,$92,$8C,$8E,$97,$9C,$8E,$8D,$00,$8B,$A2,$00,$97,$92,$97,$9D
+	.db $8E,$97,$8D,$98
+	.db $FE
+	.dw $2321
+	.db $99,$B2,$95,$8C,$98,$96,$00,$9C,$98,$8F,$9D,$A0,$B2,$9B,$8E,$00
+	.db $92,$9C,$00,$B2,$00,$9D,$9B,$B2,$8D,$8E,$96,$B2,$9B,$94
+	.db $FE
+	.dw $2363
+	.db $98,$8F,$00,$99,$B2,$95,$8C,$98,$96,$00,$9C,$98,$8F,$9D,$A0,$B2
+	.db $9B,$8E,$00,$95,$92,$96,$92,$9D,$8E,$8D,$A7
+	.db $FF
+.else ;VER_USA
 VRAMStrip10Data:
 	.dw $2064
 	.db $96,$98,$97,$9C,$9D,$8E,$9B,$00,$92,$97,$00,$00,$96,$A2,$00,$00
@@ -4428,6 +4525,8 @@ VRAMStrip11Data:
 	.db $97,$92,$97,$9D,$8E,$97,$8D,$98,$00,$98,$8F,$00,$B2,$96,$8E,$9B
 	.db $92,$8C,$B2,$00,$92,$97,$8C,$A7
 	.db $FF
+.endif
+
 VRAMStrip12Data:
 	.dw $262A
 	.db $A0,$A1,$A2,$A3,$A3,$00,$00,$A3,$A4,$A5,$A1,$A4
@@ -4565,6 +4664,19 @@ VRAMStrip2CData:
 	.dw $2BDA
 	.db $00,$00,$00,$00
 	.db $FF
+
+.ifdef VER_EUR
+VRAMStrip2DData:
+	.dw $290A
+	.db $04,$05,$06,$07,$08,$09,$0A,$0B,$0C,$0D,$0E,$0F
+	.db $FE
+	.dw $292A
+	.db $14,$15,$16,$17,$18,$19,$1A,$1B,$1C,$1D,$1E
+	.db $FE
+	.dw $294F
+	.db $10,$11,$12,$13,$02,$03
+	.db $FF
+.else ;VER_USA
 VRAMStrip2DData:
 	.dw $28CF
 	.db $04,$05,$06
@@ -4587,6 +4699,7 @@ VRAMStrip2DData:
 	.dw $298D
 	.db $02,$03,$10,$11,$12,$13
 	.db $FF
+.endif
 
 ;;;;;;;;;;;;;;;
 ;VRAM ROUTINES;
@@ -5026,7 +5139,7 @@ InitLevelScroll:
 	jsr LoadPRGBank
 	jsr GetHUDPosition
 InitLevelScroll_Loop:
-	;Go to next screen
+	;Go to next row
 	inc ScrollYCollPosLo
 	inc TempMirror_PPUSCROLL_Y
 	lda TempMirror_PPUSCROLL_Y
@@ -5041,7 +5154,7 @@ InitLevelScroll_NoYC:
 	ldy CurLevel
 	lda LevelBankTable,y
 	jsr LoadPRGBank
-	;Draw screen of tiles
+	;Draw row of tiles
 	jsr UpdateLevelScroll
 	;Load PRG bank $32 (update HUD bank)
 	lda #$32
@@ -5059,7 +5172,7 @@ InitLevelScroll_NoYC:
 	jsr WriteVRAMBuffer
 	;Set PPU control register
 	jsr SetScroll_SetCtrl
-	;Loop for each screen
+	;Loop for each row
 	lda ScrollInitScreenCounter
 	cmp #$02
 	bne InitLevelScroll_Loop
@@ -5731,7 +5844,7 @@ UpdateEnemyBGMovement_NoInvin:
 	;Check for key enemy slots
 	cpx #$02
 	bcc UpdateEnemyBGMovement_CheckHitAttack
-	;If bit 0 of global timer = bit 0 of enemy slot index, don't check for collision
+	;If bit 0 of global timer == bit 0 of enemy slot index, don't check for collision
 	lda GlobalTimer
 	eor CurEnemyIndex
 	lsr
@@ -5871,7 +5984,7 @@ Enemy01_Sub1_Clear:
 Enemy02JumpTable:
 	.dw Enemy02_Sub0	;$00  Main
 Enemy01_Sub0_NextID:
-	;Set enemy ID $02 (explosion 2)
+	;Set enemy ID to explosion 2
 	inc Enemy_ID,x
 ;$00: Main
 Enemy02_Sub0:
@@ -5920,6 +6033,7 @@ ClearEnemy:
 	sta Enemy_Temp3,x
 	sta Enemy_Temp4,x
 ClearEnemy_Ending:
+	;Clear enemy state
 	lda #$00
 	sta Enemy_Flags,x
 	sta Enemy_ID,x
@@ -6232,11 +6346,11 @@ EnemyGetGroundCollision_AnyY:
 	adc #$01
 EnemyGetGroundCollision_PosX:
 	sta $00
-	;Get wall collision Y offset
+	;Get ground collision Y offset
 	ldy $17
 	lda EnemyGroundCollisionYOffsTable,y
 	tay
-	;Get wall collision type
+	;Get ground collision type
 	jsr EnemyGetCollisionType
 	;Check for non-slope collision types
 	cmp #$13

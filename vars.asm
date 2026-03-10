@@ -120,7 +120,7 @@ RespawnGameOverTimer	.equ $CD
 ScrollEnemyFlag		.equ $CE
 ExplosionSoundLoopingID	.equ $CF
 TempSoundDataPointer	.equ $E0
-;Temps: $E2-$EE
+;Temps: $E2-$F0
 SpriteBossModeFlag	.equ $F2
 BossDeathSoundFlag	.equ $F3
 TempJoypadDown		.equ $F8
@@ -199,6 +199,9 @@ SoundFadeout		.equ $01B1
 SoundTickFlag		.equ $01B2
 SoundLoopingID		.equ $01B3
 SoundSq1OutFreqLo	.equ $01B4
+SoundPALTempoCompare	.equ $01B6
+SoundPALTempoTimer	.equ $01B7
+SoundPALTempoFlag	.equ $01B8
 SoundInst2FreqLo	.equ $03C0
 SoundInst2FreqHi	.equ $03C3
 SoundEnvSMultiplier	.equ $03C6
@@ -578,6 +581,7 @@ MUSIC_CLEAR		.equ $B8
 MUSIC_GAMEOVER		.equ $BC
 
 SF1_SNDEFF		.equ $01
+SF1_PALTEMPO		.equ $20
 SF1_REST		.equ $40
 SF1_SWEEP		.equ $80
 SF2_LOOP		.equ $01

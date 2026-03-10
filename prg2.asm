@@ -1472,7 +1472,11 @@ RunGameSubmode_IntroFadeIn:
 	lda FadeDirection
 	beq RunGameSubmode_IntroFadeIn_Exit
 	;Set timer
+.ifdef VER_EUR
+	lda #$A6
+.else ;VER_USA
 	lda #$D0
+.endif
 	sta IntroEndingTimerLo
 	;Next submode ($02: TV blank in)
 	inc GameSubmode
@@ -1557,7 +1561,11 @@ RunGameSubmode_IntroTVBlankIn:
 	sta SoundFadeoutTimer
 	sta SoundFadeout
 	;Set timer
+.ifdef VER_EUR
+	lda #$26
+.else ;VER_USA
 	lda #$30
+.endif
 	sta IntroEndingTimerLo
 	;Next submode ($03: TV static in)
 	inc GameSubmode
@@ -1578,8 +1586,13 @@ RunGameSubmode_IntroTVBlankIn_Loop:
 	sta TempCHRBanks
 	rts
 RunGameSubmode_IntroTVBlankIn_Static:
+.ifdef VER_EUR
+	;If timer $26, play sound
+	cmp #$26
+.else ;VER_USA
 	;If timer $30, play sound
 	cmp #$30
+.endif
 	bne RunGameSubmode_IntroTVBlankIn_NoSound
 	;Play sound
 	lda #SE_TVSTATIC
@@ -1590,8 +1603,13 @@ RunGameSubmode_IntroTVBlankIn_NoSound:
 	sta TempCHRBanks
 RunGameSubmode_IntroTVBlankIn_Exit:
 	rts
+.ifdef VER_EUR
+TVBlankStaticInTimer:
+	.db $0A,$0C,$24,$26
+.else ;VER_USA
 TVBlankStaticInTimer:
 	.db $0E,$10,$2E,$30
+.endif
 
 ;$03: TV static in
 RunGameSubmode_IntroTVStaticIn:
@@ -2199,8 +2217,13 @@ UpdateTVBlinkAnimation_SetVRAMStrip:
 	;Write TV blink VRAM strip
 	lda TVBlinkVRAMStripTable,y
 	jmp WriteVRAMStrip
+.ifdef VER_EUR
+TVBlinkTimerTable:
+	.db $0C,$10,$14,$18
+.else ;VER_USA
 TVBlinkTimerTable:
 	.db $10,$14,$18,$1C
+.endif
 TVBlinkVRAMStripTable:
 	.db $28,$29,$28,$2A
 
@@ -2260,7 +2283,11 @@ DialogSub2:
 	jmp WriteDialogVRAMStrip
 DialogSub2_Next:
 	;Set timer
+.ifdef VER_EUR
+	lda #$19
+.else ;VER_USA
 	lda #$20
+.endif
 	sta DialogTimer
 	;Next task ($03: Wait for clear)
 	inc DialogUpdateMode
@@ -2286,7 +2313,11 @@ DialogSub4:
 	jmp WriteDialogVRAMStrip
 DialogSub4_Next:
 	;Set timer
+.ifdef VER_EUR
+	lda #$0D
+.else ;VER_USA
 	lda #$10
+.endif
 	sta DialogTimer
 	;Next task ($05: Wait for next)
 	inc DialogUpdateMode
@@ -2362,12 +2393,23 @@ WriteDialogVRAMStrip_NoInit:
 	beq WriteDialogVRAMStrip_NoWait
 	;Check if bits 0-3 of dialog text timer 0
 	lda DialogTextTimer
+.ifdef VER_EUR
+	cmp #$07
+	bcs WriteDialogVRAMStrip_NoWait
+.else ;VER_USA
 	and #$07
 	beq WriteDialogVRAMStrip_NoWait
+.endif
 	jmp WriteDialogVRAMStrip_NoVRAMC
 WriteDialogVRAMStrip_NoWait:
-	;Get dialog data pointer
+.ifdef VER_EUR
+	;Clear dialog text timer
+	ldy #$00
+	sty DialogTextTimer
+.else ;VER_USA
 	tay
+.endif
+	;Get dialog data pointer
 	lda DialogDataPointerLo
 	sta $08
 	lda DialogDataPointerHi
@@ -3174,7 +3216,11 @@ RunGameSubmode_EndingPlayerDialog_PlayerNext:
 	lda #MUSIC_CREDITS
 	jsr LoadSound
 	;Set timer
+.ifdef VER_EUR
+	lda #$66
+.else ;VER_USA
 	lda #$80
+.endif
 	sta IntroEndingTimerLo
 	lda #$00
 	sta IntroEndingTimerHi
@@ -3201,7 +3247,11 @@ RunGameSubmode_EndingCredits:
 	jmp UpdateEndingCredits
 RunGameSubmode_EndingCredits_Next:
 	;Set timer
+.ifdef VER_EUR
+	lda #$20
+.else ;VER_USA
 	lda #$28
+.endif
 	sta IntroEndingTimerLo
 	;Next submode ($16: Player wait)
 	inc GameSubmode
@@ -3216,7 +3266,11 @@ RunGameSubmode_EndingPlayerWait:
 	;Next submode ($17: Player stand)
 	inc GameSubmode
 	;Set timer
+.ifdef VER_EUR
+	lda #$B3
+.else ;VER_USA
 	lda #$E0
+.endif
 	sta IntroEndingTimerLo
 	;Clear animation offset/timer
 	lda #$00
@@ -3241,7 +3295,11 @@ RunGameSubmode_EndingPlayerStand:
 	;Next submode ($18: Player run)
 	inc GameSubmode
 	;Set timer
+.ifdef VER_EUR
+	lda #$26
+.else ;VER_USA
 	lda #$30
+.endif
 	sta IntroEndingTimerLo
 	;Set player animation
 	jmp IntroSetPlayerAnimation_EntEnding
@@ -3259,7 +3317,11 @@ RunGameSubmode_EndingPlayerRun:
 	dec IntroEndingTimer2
 	bne RunGameSubmode_EndingPlayerRun_Exit
 	;Set timer
+.ifdef VER_EUR
+	lda #$66
+.else ;VER_USA
 	lda #$80
+.endif
 	sta IntroEndingTimerLo
 	;Next submode ($19: Logo wait)
 	inc GameSubmode
@@ -3323,18 +3385,31 @@ RunGameSubmode_EndingLogoFadeIn:
 	dec EndingLogoPaletteOffs
 	bpl RunGameSubmode_EndingLogoFadeIn_Exit
 	;Set timer
+.ifdef VER_EUR
+	lda #$A9
+.else ;VER_USA
 	lda #$E0
+.endif
 	sta IntroEndingTimerLo
 	;Next submode ($1C: Logo main)
 	inc GameSubmode
 RunGameSubmode_EndingLogoFadeIn_Exit:
 	rts
+.ifdef VER_EUR
+EndingLogoPalette1Data:
+	.db $16,$16,$06
+EndingLogoPalette2Data:
+	.db $01,$01,$0F
+EndingLogoPalette3Data:
+	.db $20,$20,$10
+.else ;VER_USA
 EndingLogoPalette1Data:
 	.db $16,$06,$0F
 EndingLogoPalette2Data:
 	.db $27,$17,$07
 EndingLogoPalette3Data:
 	.db $10,$00,$0F
+.endif
 
 ;$1C: Logo main
 RunGameSubmode_EndingLogoMain:
@@ -3628,7 +3703,11 @@ EndingCreditsSub0:
 	lda DialogWriteMode
 	bne EndingCreditsSub0_Exit
 	;Set timer
+.ifdef VER_EUR
+	lda #$26
+.else ;VER_USA
 	lda #$30
+.endif
 	sta IntroEndingTimer2
 	;Next mode ($01: Wait for clear)
 	inc CreditsUpdateMode
@@ -3657,7 +3736,11 @@ EndingCreditsSub1:
 	jsr WriteVRAMStrip
 EndingCreditsSub1_NoLogo:
 	;Set timer
+.ifdef VER_EUR
+	lda #$95
+.else ;VER_USA
 	lda #$C0
+.endif
 	sta IntroEndingTimer2
 	;Next mode ($02: Clear part 1)
 	inc CreditsUpdateMode
@@ -3741,7 +3824,11 @@ EndingCreditsSub5:
 	;Next mode ($06: Wait for next)
 	inc CreditsUpdateMode
 	;Set timer
+.ifdef VER_EUR
+	lda #$0C
+.else ;VER_USA
 	lda #$10
+.endif
 	sta IntroEndingTimer2
 	;Clear ending credits line $09
 	lda #$09
@@ -3759,6 +3846,17 @@ EndingCreditsSub6_Exit:
 	rts
 
 ;UNUSED SPACE
+;.ifdef VER_EUR
+	;$7F bytes of free space available
+	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+;.else ;VER_USA
 	;$12A bytes of free space available
 	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
@@ -3779,5 +3877,6 @@ EndingCreditsSub6_Exit:
 	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+;.endif
 
 	.org $C000

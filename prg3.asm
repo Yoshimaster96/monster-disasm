@@ -13,7 +13,7 @@ HandlePlayerCollisionX:
 	bpl HandlePlayerCollisionX_PosX
 	iny
 HandlePlayerCollisionX_PosX:
-	;Get collision type top side
+	;Get collision type side top
 	sty $16
 	lda PlayerCollisionXOffsLoTable,y
 	clc
@@ -33,7 +33,7 @@ HandlePlayerCollisionX_PosX:
 	;Check for solid collision type
 	cmp #$16
 	bcs HandlePlayerCollisionX_Solid
-	;Get collision type middle side
+	;Get collision type side middle
 	lda Enemy_Y,x
 	clc
 	adc #$04
@@ -47,7 +47,7 @@ HandlePlayerCollisionX_PosX:
 	bcs HandlePlayerCollisionX_Solid
 	;Check for behind BG area
 	jsr CheckBehindBGArea
-	;Get collision type bottom side
+	;Get collision type side bottom
 	lda Enemy_Y,x
 	clc
 	adc #$15
@@ -2440,7 +2440,7 @@ UpdatePlayerAnimation:
 	;Check for end of animation
 	dec PlayerAnimOffs,x
 	bpl UpdatePlayerAnimation_NoFC
-	;Reset enemy animation frame
+	;Reset animation frame
 	lda PlayerAnimationOffsTable,y
 	sta PlayerAnimOffs,x
 UpdatePlayerAnimation_NoFC:
@@ -2875,7 +2875,7 @@ PlayerModeSub0:
 	txa
 	eor #$01
 	tay
-	;If other player lives < $02, don't allow lives borrowing
+	;If other player lives < 2, don't allow lives borrowing
 	lda PlayerLives,y
 	cmp #$02
 	bcc PlayerModeSub0_Exit
@@ -2892,7 +2892,7 @@ PlayerModeSub1:
 	txa
 	eor #$01
 	tay
-	;If other player lives < $02, don't allow lives borrowing
+	;If other player lives < 2, don't allow lives borrowing
 	lda PlayerLives,y
 	cmp #$02
 	bcc PlayerModeSub1_NoRespawn
@@ -2928,7 +2928,7 @@ PlayerModeSub1_NoRespawn:
 	;If player 2, exit early
 	txa
 	bne PlayerModeSub1_Exit
-	;If other player lives >= $02, exit early
+	;If other player not active, exit early
 	lda PlayerMode+1
 	cmp #$02
 	bcs PlayerModeSub1_Exit
@@ -6471,7 +6471,7 @@ HaniverAttackSub_Right:
 	sta Enemy_YVel,y
 	lda HaniverFireYVelocityLo,x
 	sta Enemy_YVelLo,y
-	;Set enemy ID $1A (Haniver fire)
+	;Set enemy ID to Haniver fire
 	lda #ENEMY_HANIVERFIRE
 	sta Enemy_ID,y
 	;Set enemy flags
@@ -6897,7 +6897,7 @@ Enemy1E_Sub1:
 Enemy1E_Sub1_Exit:
 	rts
 Enemy1E_Sub1_Spawn:
-	;Set enemy ID $1F (Charon falling)
+	;Set enemy ID to Charon falling
 	lda #ENEMY_CHARONFALLING
 	sta Enemy_ID,x
 	;Set enemy position
@@ -7159,7 +7159,7 @@ Enemy24_Sub4:
 	jsr SpawnFreeEnemySlot
 	;If no free slot available, exit early
 	bcc Enemy24_Sub4_Exit
-	;Set enemy ID $25 (Hydra fire)
+	;Set enemy ID to Hydra fire
 	ldy $00
 	lda #ENEMY_HYDRAFIRE
 	sta Enemy_ID,y
@@ -7609,7 +7609,7 @@ Enemy30_Sub1_Loop:
 Enemy30_Sub1_Exit:
 	rts
 Enemy30_Sub0_Spawn:
-	;Set enemy ID $28 (Harpy spawner)
+	;Set enemy ID to Harpy spawner
 	lda #ENEMY_HARPYSPAWNER
 	sta Enemy_ID,y
 	;Set enemy flags/position
@@ -7679,7 +7679,7 @@ Enemy28_Sub0_CheckSpawn:
 	sta Enemy_HP,y
 	lda Enemy_Y+$08,x
 	sta Enemy_Y+$08,y
-	;Set enemy ID $29 (Harpy)
+	;Set enemy ID to Harpy
 	lda #ENEMY_HARPY
 	sta Enemy_ID,y
 	;Set enemy flags
@@ -7868,7 +7868,7 @@ Enemy2A_Sub2:
 	jsr FindFreeEnemySlot
 	;If no free slot available, exit early
 	bcc Enemy2A_Sub1_Exit
-	;Set enemy ID $2B (Chimera fire)
+	;Set enemy ID to Chimera fire
 	txa
 	tay
 	ldx CurEnemyIndex
@@ -7975,7 +7975,7 @@ Enemy2B_Sub0:
 	inc Enemy_Mode,x
 ;$01: Main
 Enemy2B_Sub1:
-	;If enemy sprite $66, don't updat enemy animation
+	;If enemy sprite $66, don't update enemy animation
 	lda Enemy_Sprite+$08,x
 	cmp #$66
 	beq Enemy2B_Sub1_NoAnim
@@ -8198,7 +8198,7 @@ Enemy2E_Sub1_CheckSpawn:
 	tay
 	ldx CurEnemyIndex
 	sta Enemy_Temp3,x
-	;Set enemy ID $2F (Kali fire)
+	;Set enemy ID to Kali fire
 	lda #ENEMY_KALIFIRE
 	sta Enemy_ID,y
 	;Set projectile enemy slot index

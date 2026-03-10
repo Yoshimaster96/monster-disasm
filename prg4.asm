@@ -616,7 +616,7 @@ CheckAttackCollision_NoKeyDeath:
 	lda SpriteBossModeFlag
 	bne CheckAttackCollision_NoExplosion
 CheckAttackCollision_SetExplosion:
-	;Set enemy ID $01 (Explosion)
+	;Set enemy ID to explosion
 	lda #ENEMY_EXPLOSION
 	sta Enemy_ID,y
 CheckAttackCollision_NoExplosion:
@@ -760,7 +760,7 @@ CheckEnemyCollision_PowerHit:
 	;Set associated player for power run attack
 	txa
 	sta Enemy_Temp3,y
-	;Set enemy ID $01 (Explosion)
+	;Set enemy ID to explosion
 	lda #ENEMY_EXPLOSION
 	sta Enemy_ID,y
 	;Next task ($00: Init)
@@ -1366,34 +1366,34 @@ MultiplyTargetVelocity:
 	lda #$00
 	sta $01
 	lda $00
-	;If Y = $05, multiply by 13/8
+	;If Y == $05, multiply by 13/8
 	cpy #$05
 	beq MultiplyTargetVelocity_X13_8
 	bcs MultiplyTargetVelocity_Check
-	;If Y = $03, multiply by 5/4
+	;If Y == $03, multiply by 5/4
 	cpy #$03
 	beq MultiplyTargetVelocity_X5_4
-	;If Y = $04, multiply by 3/2
+	;If Y == $04, multiply by 3/2
 	bcs MultiplyTargetVelocity_X3_2
-	;If Y = $01, multiply by 3/4
+	;If Y == $01, multiply by 3/4
 	cpy #$01
 	beq MultiplyTargetVelocity_X3_4
-	;If Y = $02, multiply by 1
+	;If Y == $02, multiply by 1
 	bcs MultiplyTargetVelocity_X1
-	;If Y = $00, multiply by 1/2
+	;If Y == $00, multiply by 1/2
 	lsr $00
 MultiplyTargetVelocity_X1:
 	rts
 MultiplyTargetVelocity_Check:
-	;If Y = $06, multiply by 7/4
+	;If Y == $06, multiply by 7/4
 	cpy #$07
 	bcc MultiplyTargetVelocity_X7_4
-	;If Y = $07, multiply by 15/8
+	;If Y == $07, multiply by 15/8
 	beq MultiplyTargetVelocity_X15_8
-	;If Y = $09, multiply by 9/4
+	;If Y == $09, multiply by 9/4
 	cpy #$09
 	beq MultiplyTargetVelocity_X9_4
-	;If Y = $08, multiply by 2
+	;If Y == $08, multiply by 2
 	asl $00
 	rol $01
 	rts
@@ -2890,7 +2890,7 @@ Level1BossAttackSpawn:
 	tay
 	lda Level1BossFireSprite,y
 	sta Enemy_Sprite+$08,x
-	;Set enemy ID $0D (Level 1 boss fire)
+	;Set enemy ID to level 1 boss fire
 	lda #ENEMY_LEVEL1BOSSFIRE
 	sta Enemy_ID,x
 	;Set enemy flags/props
@@ -2968,7 +2968,7 @@ Enemy3B_Sub0_NoDeath:
 	;Set enemy flags
 	lda #(EF_NOHITENEMY|EF_NOHITATTACK|$0E)
 	sta Enemy_Flags+$02
-	;Set enemy ID $56 (Level 3 boss fade)
+	;Set enemy ID to level 3 boss fade
 	lda #ENEMY_LEVEL3BOSSFADE
 	sta Enemy_ID+$02
 	rts
@@ -3280,7 +3280,7 @@ Enemy3B_SubC_BR:
 	;Next task ($04: Fade in init part 1)
 	lda #$04
 	sta Enemy_Mode+$02
-	;Set enemy ID $56 (Level 3 boss fade)
+	;Set enemy ID to level 3 boss fade
 	lda #ENEMY_LEVEL3BOSSFADE
 	sta Enemy_ID+$02
 Enemy3B_SubC_Exit:
@@ -3370,7 +3370,7 @@ Enemy3C_Sub0_SetX:
 	sta Enemy_Sprite+$08,x
 	lda #(EF_NOHITATTACK|EF_ALLOWOFFSCREEN|$02)
 	sta Enemy_Flags,x
-	;Set enemy ID $3C (Level 3 boss part)
+	;Set enemy ID to level 3 boss part
 	lda #ENEMY_LEVEL3BOSSPART
 	sta Enemy_ID,x
 	;If part Y offset $05, don't flip enemy X
@@ -3743,7 +3743,7 @@ Enemy3E_Sub1_NoSound:
 	bne Enemy3E_Sub0_Exit
 	;Clear enemy
 	jsr ClearEnemy
-	;Set enemy ID $3C (Level 3 boss part)
+	;Set enemy ID to level 3 boss part
 	lda #ENEMY_LEVEL3BOSSPART
 	sta Enemy_ID,x
 	rts
@@ -3819,7 +3819,7 @@ Enemy39_Sub0_NoDeath:
 	;Set animation timer
 	lda #$08
 	sta Enemy_Temp1+$02
-	;Set enemy ID $57 (Level 4 boss fade)
+	;Set enemy ID to level 4 boss fade
 	lda #ENEMY_LEVEL4BOSSFADE
 	sta Enemy_ID+$02
 	rts
@@ -4265,7 +4265,7 @@ Enemy39_SubA_BR:
 	;Set scroll Y position
 	lda #$20
 	sta TempMirror_PPUSCROLL_Y
-	;Set enemy ID $57 (Level 4 boss fade)
+	;Set enemy ID to level 4 boss fade
 	lda #ENEMY_LEVEL4BOSSFADE
 	sta Enemy_ID+$02
 	;Next task ($04: Fade in init part 1)
@@ -4287,7 +4287,7 @@ Level4BossAttackSub_Loop:
 	jsr FindFreeEnemySlot
 	;If no free slot available, skip this part
 	bcc Level4BossAttackSub_End
-	;Set enemy ID $3A (Level 4 boss fire)
+	;Set enemy ID to level 4 boss fire
 	lda #ENEMY_LEVEL4BOSSFIRE
 	sta Enemy_ID,x
 	;Set enemy velocity data offset
@@ -4623,7 +4623,7 @@ Enemy16_Sub4_Right:
 	sta Enemy_XVel,y
 	lda #$80
 	sta Enemy_XVelLo,y
-	;Set enemy ID $17 (Level 2 boss fire)
+	;Set enemy ID to level 2 boss fire
 	lda #ENEMY_LEVEL2BOSSFIRE
 	sta Enemy_ID,y
 	;Set enemy flags/sprite
@@ -4805,7 +4805,7 @@ Enemy42_Sub1_NoFlip:
 	;Set enemy flags
 	lda #(EF_NOHITENEMY|EF_NOHITATTACK|EF_ALLOWOFFSCREEN)
 	sta Enemy_Flags,y
-	;Set enemy ID $42 (Level 5 boss)
+	;Set enemy ID to level 5 boss
 	lda #ENEMY_LEVEL5BOSS
 	sta Enemy_ID,y
 	;Next task ($02: In)
@@ -4939,7 +4939,7 @@ Enemy42_Sub3:
 	ldy $00
 	lda #$10
 	sta Enemy_Temp1,y
-	;Set enemy ID $43 (Level 5 boss fire)
+	;Set enemy ID to level 5 boss fire
 	lda #ENEMY_LEVEL5BOSSFIRE
 	sta Enemy_ID,y
 	;Set enemy flags
@@ -4968,7 +4968,7 @@ Enemy42_Sub4:
 	beq Enemy42_Sub4_NoSp
 	sta Enemy_Temp2,x
 Enemy42_Sub4_NoSp:
-	;If bit 0 of animation timer = bit 0 of enemy slot index, clear enemy sprite
+	;If bit 0 of animation timer == bit 0 of enemy slot index, clear enemy sprite
 	lda Enemy_Temp1,x
 	eor CurEnemyIndex
 	and #$01
@@ -5013,7 +5013,7 @@ Enemy42_Sub5_Spawn:
 	sta Enemy_YVel,y
 	lda Enemy_Temp5+$02
 	sta Enemy_YVelLo,y
-	;Set enemy ID $43 (Level 5 boss fire)
+	;Set enemy ID to level 5 boss fire
 	lda #ENEMY_LEVEL5BOSSFIRE
 	sta Enemy_ID,y
 	;Set enemy flags
@@ -5428,7 +5428,7 @@ Enemy58_Sub4:
 	;Load CHR bank
 	lda #$2D
 	sta TempCHRBanks+2
-	;Set enemy ID $59 (Level 6 boss fire)
+	;Set enemy ID to level 6 boss fire
 	lda #ENEMY_LEVEL6BOSSFIRE
 	sta Enemy_ID+$03
 	;Set timer
@@ -5835,7 +5835,7 @@ Enemy59_Sub1_SetDir:
 	;Set direction value
 	sta Enemy_Temp2+$01,x
 Enemy59_Sub1_NoSetDir:
-	;Set enemy ID $59 (Level 6 boss fire)
+	;Set enemy ID to level 6 boss fire
 	lda #ENEMY_LEVEL6BOSSFIRE
 	sta Enemy_ID+$01,x
 	;Set enemy flags
@@ -5999,7 +5999,7 @@ Enemy5A_Sub0_Loop:
 	sta Enemy_Mode,x
 	;Set enemy points value
 	dec Enemy_Temp2,x
-	;Set enemy ID $01 (Explosion)
+	;Set enemy ID to explosion
 	lda #ENEMY_EXPLOSION
 Enemy5A_Sub0_SetID:
 	sta Enemy_ID,x
@@ -6086,7 +6086,7 @@ Enemy5C_Sub4:
 	;Set enemy Y position
 	lda #$A0
 	sta Enemy_Y+$08,y
-	;Set enemy ID $5D (Windigo)
+	;Set enemy ID to Windigo
 	lda #ENEMY_WINDIGO
 	sta Enemy_ID,y
 Enemy5C_Sub4_Clear:
@@ -6205,7 +6205,7 @@ Enemy5C_Sub3:
 	cpx #$04
 	rol
 	tay
-	;Set enemy ID $5C (Level 7 boss fire)
+	;Set enemy ID to level 7 boss fire
 	lda #ENEMY_LEVEL7BOSSFIRE
 	sta Enemy_ID+$0A,y
 	;Set enemy sprite/position/velocity
@@ -6332,7 +6332,7 @@ Enemy18_Sub0_Spawn:
 	ldx CurEnemyIndex
 	;Set egg enemy slot index
 	sta Enemy_Temp3,x
-	;Set enemy ID $0E (Roc fire)
+	;Set enemy ID to Roc
 	tay
 	lda #ENEMY_ROCFIRE
 	sta Enemy_ID,y
@@ -6537,7 +6537,7 @@ Enemy0E_Sub0_Exit:
 	rts
 ;$01: Fall
 Enemy0E_Sub1:
-	;If bit 0 of global timer = bit 0 of enemy slot index, skip this part
+	;If bit 0 of global timer == bit 0 of enemy slot index, skip this part
 	txa
 	eor GlobalTimer
 	and #$01
@@ -6688,7 +6688,7 @@ Enemy0F_Sub1_CheckT:
 	sbc #$18
 Enemy0F_Sub1_NoAngleC:
 	sta $01
-	;If previous angle = new angle, exit early
+	;If previous angle == new angle, exit early
 	tya
 	cmp $06
 	beq Enemy0F_Sub0_Exit
@@ -6889,7 +6889,7 @@ Enemy10_Sub2_Spawn:
 	ldx CurEnemyIndex
 	lda #$F8
 	jsr OffsetEnemyYPos
-	;Set enemy ID $11 (Ghoul fire)
+	;Set enemy ID to Ghoul fire
 	lda #ENEMY_GHOULFIRE
 	sta Enemy_ID,y
 	;Set parent enemy slot index
@@ -7093,7 +7093,7 @@ Enemy13_Sub2_NoYC:
 	ldx CurEnemyIndex
 	lda #$F8
 	jsr OffsetEnemyYPos
-	;Set enemy ID $14 (Goblin fire)
+	;Set enemy ID to Goblin fire
 	lda #ENEMY_GOBLINFIRE
 	sta Enemy_ID,y
 	;Set enemy sprite
@@ -7459,7 +7459,7 @@ Enemy31_Sub2_CheckSpawn:
 	jsr FindFreeEnemySlot
 	;If no free slot available, exit early
 	bcc Enemy31_Sub2_NoSpawn
-	;Set enemy ID $46 (Manticore fire)
+	;Set enemy ID to Manticore fire
 	txa
 	tay
 	ldx CurEnemyIndex
@@ -7793,7 +7793,7 @@ Enemy35_Sub1_Exit:
 Enemy35_Sub1_Grounded:
 	;Update enemy animation
 	jsr UpdateEnemyAnimation
-	;If bits 0-1 of global timer = bit 0-1 of enemy slot index, don't move enemy X
+	;If bits 0-1 of global timer == bit 0-1 of enemy slot index, don't move enemy X
 	lda GlobalTimer
 	and #$03
 	sta $00
@@ -8140,7 +8140,7 @@ Enemy37_Sub3:
 	jsr FindFreeEnemySlot
 	;If no free slot available, skip this part
 	bcc Enemy37_Sub3_NoAttack
-	;Set enemy ID $47 (Tengu fire)
+	;Set enemy ID to Tengu fire
 	lda #ENEMY_TENGUFIRE
 	sta Enemy_ID,x
 	;Set parent enemy slot index
@@ -8507,7 +8507,7 @@ Enemy33_Sub1_Spawn:
 	ldx CurEnemyIndex
 	lda #$FC
 	jsr OffsetEnemyYPos
-	;Set enemy ID $48 (Cockatrice fire)
+	;Set enemy ID to Cockatrice fire
 	lda #ENEMY_COCKATRICEFIRE
 	sta Enemy_ID,y
 	;Set animation timer
@@ -8770,7 +8770,7 @@ Enemy49_Sub2_CheckSpawn:
 	inc Enemy_Temp1,x
 	rts
 Enemy49_Sub2_Spawn:
-	;Set enemy ID $4A (T-Rex fire)
+	;Set enemy ID to T-Rex fire
 	lda #ENEMY_TREXFIRE
 	sta Enemy_ID,x
 	;Offset projectile Y position
@@ -9104,7 +9104,7 @@ Enemy4E_Sub1_Spawn:
 	sta Enemy_X+$08,x
 	lda WaterDropYPosition,y
 	sta Enemy_Y+$08,x
-	;Set enemy ID $4F (Water drop)
+	;Set enemy ID to water drop
 	lda #ENEMY_WATERDROP
 	sta Enemy_ID,x
 	;Load CHR bank
@@ -9382,7 +9382,7 @@ Enemy51_Sub1_SetExplosion:
 	sta Enemy_Temp2,x
 	lda #$FF
 	sta Enemy_Temp5,x
-	;Set enemy ID $01 (Explosion)
+	;Set enemy ID to explosion
 	lda #ENEMY_EXPLOSION
 	sta Enemy_ID,x
 	rts
@@ -9487,7 +9487,7 @@ Enemy52_Sub1_CheckD:
 	jsr FindFreeEnemySlot
 	;If no free slot available, exit early
 	bcc Enemy52_Sub1_NoAttack
-	;Set enemy ID $53 (Great Beast fire)
+	;Set enemy ID to Great Beast fire
 	lda #ENEMY_GREATBEASTFIRE
 	sta Enemy_ID,x
 	;Offset projectile Y position
@@ -9960,7 +9960,7 @@ Enemy56_Sub3_Loop:
 	sta PaletteBuffer+$0D,y
 	dey
 	bpl Enemy56_Sub3_Loop
-	;Set enemy ID $3B (Level 3 boss)
+	;Set enemy ID to level 3 boss
 	lda #ENEMY_LEVEL3BOSS
 	sta Enemy_ID+$02
 	;Set enemy flags
@@ -10188,7 +10188,7 @@ Enemy57_Sub3:
 	sta Enemy_X+$0A
 	lsr
 	sta Enemy_Props+$0A
-	;Set enemy ID $39 (Level 4 boss)
+	;Set enemy ID to level 4 boss
 	lda #ENEMY_LEVEL4BOSS
 	sta Enemy_ID+$02
 	;Set enemy flags

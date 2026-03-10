@@ -1,7 +1,10 @@
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;Monster In My Pocket (U) Disassembly;
-;          By Yoshimaster96          ;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Monster In My Pocket Disassembly;
+;        By Yoshimaster96        ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;VER_USA = 1	;Default
+;VER_EUR = 1
 
 ;;;;;;;;;;;;;
 ;INES HEADER;
@@ -27,4 +30,8 @@
 ;;;;;;;;;
 ;CHR ROM;
 ;;;;;;;;;
+.ifdef VER_EUR
+	.incbin "chr_e.bin"
+.else ;VER_USA
 	.incbin "chr.bin"
+.endif

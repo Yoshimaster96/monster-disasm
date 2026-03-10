@@ -5543,7 +5543,7 @@ Enemy04_Sub1:
 	;Check if on slope
 	lda Enemy_Temp3,x
 	bne Enemy04_Sub1_Slope
-	;If bit 0 of global timer = bit 0 of enemy slot index, skip this part
+	;If bit 0 of global timer == bit 0 of enemy slot index, skip this part
 	txa
 	eor GlobalTimer
 	lsr
@@ -5903,7 +5903,7 @@ Enemy06_Sub2_Loop:
 	bcs Enemy06_Sub2_Loop
 	rts
 Enemy06_Sub2_Shoot:
-	;Set enemy ID $07 (Skeleton fire)
+	;Set enemy ID to Skeleton fire
 	lda #ENEMY_SKELETONFIRE
 	sta Enemy_ID,y
 	;Set enemy flags
@@ -6483,7 +6483,7 @@ Enemy0A_Sub1_Spawn:
 	sta Enemy_Props+$08,x
 	lda Enemy_Y,y
 	sta Enemy_Y+$08,x
-	;Set enemy ID $0B (Witch)
+	;Set enemy ID to Witch
 	lda #ENEMY_WITCH
 	sta Enemy_ID,x
 	;Set enemy flags
@@ -6565,7 +6565,7 @@ Enemy0B_Sub1:
 	jsr SpawnFreeEnemySlot
 	;If no free slot available, exit early
 	bcc Enemy0B_Sub1_Exit
-	;Set enemy ID $03 (Witch fire)
+	;Set enemy ID to Witch fire
 	ldy $00
 	lda #ENEMY_WITCHFIRE
 	sta Enemy_ID,y

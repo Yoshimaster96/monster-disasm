@@ -101,18 +101,109 @@ UpdateSoundPause_NoChange:
 UpdateSoundPause_SE:
 	;Set square 1 sound registers
 	lda SoundFreqHi,x
+.ifdef VER_EUR
+	;Adjust for PAL frequency
+	sta $F0
+	lda SoundFreqLo,x
+	sta $EF
+	jsr AdjustPALFrequency
+	lda $F0
+	ora #$08
+	sta SQ1_HI
+	lda $EF
+.else ;VER_USA
 	ora #$08
 	sta SQ1_HI
 	lda SoundFreqLo,x
+.endif
 	sta SQ1_LO
 	lda SoundOutVol,x
 	ora SoundDuty,x
 	sta SQ1_VOL
+UpdateSoundPause_Exit:
 	rts
+
+.ifdef VER_EUR
+AdjustPALTempo:
+	;If sound is paused, exit
+	lda SoundPausedFlag
+	bne UpdateSoundPause_Exit
+	;If PAL tempo 0, exit
+	lda SoundPALTempoCompare
+	beq UpdateSoundPause_Exit
+	;Increment PAL tempo timer
+	inc SoundPALTempoTimer
+	;If PAL tempo timer != PAL tempo compare, exit
+	cmp SoundPALTempoTimer
+	bne UpdateSoundPause_Exit
+	;Reset PAL tempo timer
+	lda #$00
+	sta SoundPALTempoTimer
+	;Check if PAL tempo $06
+	lda SoundPALTempoCompare
+	cmp #$06
+	bne AdjustPALTempo_IncTempo
+	;Decrement PAL tempo
+	dec SoundPALTempoCompare
+	bne AdjustPALTempo_NoSetTempo
+AdjustPALTempo_IncTempo:
+	;Increment PAL tempo
+	inc SoundPALTempoCompare
+AdjustPALTempo_NoSetTempo:
+	;Update sound channels
+	lda #$00
+	tax
+	tay
+AdjustPALTempo_Loop:
+	;Check if channel is active
+	lda SoundID,x
+	beq AdjustPALTempo_Next
+	;Check for sound effect
+	lda SoundControlFlags1,x
+	and #SF1_SNDEFF
+	bne AdjustPALTempo_Next
+	;If sound timer not $01, decrement sound timer
+	lda SoundTimer,x
+	cmp #$01
+	bne AdjustPALTempo_DecT
+	;Set PAL tempo flag
+	stx SoundCurChannel
+	sty SoundOutIndex
+	lda SoundControlFlags1,x
+	ora #SF1_PALTEMPO
+	sta SoundControlFlags1,x
+	;Update sound channel
+	jsr UpdateSoundChannel_NoPALTempo
+	;Check for PAL tempo flag
+	ldx SoundCurChannel
+	ldy SoundOutIndex
+	lda SoundPALTempoFlag,x
+	bne AdjustPALTempo_Next
+AdjustPALTempo_DecT:
+	;Decrement sound timer
+	dec SoundTimer,x
+AdjustPALTempo_Next:
+	;Clear PAL tempo flag
+	lda #$00
+	sta SoundPALTempoFlag,x
+	;Go to next channel
+	cpx #$03
+	beq UpdateSoundPause_Exit
+	inx
+	iny
+	iny
+	iny
+	iny
+	bne AdjustPALTempo_Loop
+.endif
 
 UpdateSoundSub:
 	;Update sound pause
 	jsr UpdateSoundPause
+.ifdef VER_EUR
+	;Adjust for PAL tempo
+	jsr AdjustPALTempo
+.endif
 	;Update sound fadeout
 	ldx #$00
 	stx SoundCurChannel
@@ -123,6 +214,7 @@ UpdateSoundSub:
 	beq UpdateSoundSub_NoC
 	dec SoundDMCTimer
 UpdateSoundSub_NoC:
+.ifndef VER_EUR
 	;Clear sound tick flag
 	lda #$00
 	sta SoundTickFlag
@@ -138,6 +230,7 @@ UpdateSoundSub_NoC:
 	lda SoundTempoReload
 	sta SoundTempoTimer
 	inc SoundTempoTimer
+.endif
 UpdateSoundSub_Loop:
 	;Check if channel is active
 	lda SoundID,x
@@ -171,6 +264,22 @@ UpdateSoundChannel:
 	and #SF1_SNDEFF
 	beq UpdateSoundSub_Next
 UpdateSoundChannel_NextTick:
+.ifdef VER_EUR
+	;Check for sound effect
+	lda SoundControlFlags1,x
+	and #SF1_SNDEFF
+	bne UpdateSoundChannel_NoPALTempo
+	;Check for PAL tempo flag
+	lda SoundControlFlags1,x
+	and #SF1_PALTEMPO
+	beq UpdateSoundChannel_NoPALTempo
+	;Clear PAL tempo flag
+	lda SoundControlFlags1,x
+	and #~SF1_PALTEMPO
+	sta SoundControlFlags1,x
+	rts
+UpdateSoundChannel_NoPALTempo:
+.endif
 	;Decrement sound timer
 	dec SoundTimer,x
 	;If timer expired, get next command byte
@@ -549,9 +658,15 @@ OutputEchoBuffer:
 	cmp #$FF
 	beq OutputEchoBuffer_NoEcho
 	;Get frequency from echo buffer
+.ifdef VER_EUR
+	sta $F0
+	lda SoundEchoBufferLo,x
+	sta $EF
+.else ;VER_USA
 	sta $EE
 	lda SoundEchoBufferLo,x
 	sta $ED
+.endif
 	;Output sound pitch
 	ldx SoundCurChannel
 	jsr OutputSoundPitch
@@ -581,6 +696,10 @@ UpdateSoundChannel_SE:
 	;Set SFX channel rest output
 	lda #$00
 	sta SoundOutVol,x
+.ifdef VER_EUR
+	sta $EF
+	sta $F0
+.endif
 	lda SoundBaseLength,x
 	sta SoundTimer,x
 	jmp UpdateSoundChannel_SE_EntRest
@@ -634,9 +753,11 @@ UpdateSoundChannel_SE_Sq:
 	lsr
 	lsr
 	sta SoundVol,x
+.ifndef VER_EUR
 	;Check for SFX noise channel
 	cpx #$05
 	beq UpdateSoundChannel_SE_NoiseFreq
+.endif
 	;If volume 0, don't repeat frequency
 	lda SoundVol,x
 	beq UpdateSoundChannel_SE_NoRepeat
@@ -649,11 +770,19 @@ UpdateSoundChannel_SE_Sq:
 	and #$0F
 	ora #$08
 	sta SoundFreqHi,x
+.ifdef VER_EUR
+	sta $F0
+	iny
+	lda (TempSoundDataPointer),y
+	sta SoundFreqLo,x
+	sta $EF
+.else ;VER_USA
 	sta $EE
 	iny
 	lda (TempSoundDataPointer),y
 	sta SoundFreqLo,x
 	sta $ED
+.endif
 UpdateSoundChannel_SE_NoRepeat:
 	;Get note volume
 	lda SoundVol,x
@@ -674,19 +803,40 @@ UpdateSoundChannel_SE_NoVol:
 	beq UpdateSoundChannel_SE_NoRepeat2
 	;Get sound frequency
 	lda SoundFreqLo,x
+.ifdef VER_EUR
+	sta $EF
+	lda SoundFreqHi,x
+	sta $F0
+.else ;VER_USA
 	sta $ED
 	lda SoundFreqHi,x
 	sta $EE
+.endif
 	lda (TempSoundDataPointer),y
 	and #$0F
 	beq UpdateSoundChannel_SE_NoPitchSet
 UpdateSoundChannel_SE_NoRepeat2:
+.ifdef VER_EUR
+	;Check for SFX noise channel
+	cpx #$05
+	beq UpdateSoundChannel_SE_NoPitch
+	;Update sound pitch
+	jsr UpdateSoundPitch
+	;Adjust for PAL frequency
+	jsr AdjustPALFrequency
+UpdateSoundChannel_SE_NoPitch:
+	;Output sound pitch
+	lda $EF
+	sta SQ1_LO,y
+	lda $F0
+.else ;VER_USA
 	;Update sound pitch
 	jsr UpdateSoundPitch
 	;Output sound pitch
 	lda $ED
 	sta SQ1_LO,y
 	lda $EE
+.endif
 	and #$07
 	cmp SoundOutFreqHi,x
 	bne UpdateSoundChannel_SE_NoPitchRepeat
@@ -694,7 +844,11 @@ UpdateSoundChannel_SE_NoRepeat2:
 	lda SoundControlFlags1,x
 	and #SF1_SWEEP
 	beq UpdateSoundChannel_SE_NoPitchSet
+.ifdef VER_EUR
+	lda $F0
+.else ;VER_USA
 	lda $EE
+.endif
 UpdateSoundChannel_SE_NoPitchRepeat:
 	ora #$08
 	sta SQ1_HI,y
@@ -717,9 +871,15 @@ UpdateSoundChannel_SE_NoiseFreq:
 	lda (TempSoundDataPointer),y
 	and #$0F
 	sta SoundFreqLo,x
+.ifdef VER_EUR
+	sta $EF
+	lda #$08
+	sta $F0
+.else ;VER_USA
 	sta $ED
 	lda #$08
 	sta $EE
+.endif
 	lda #$30
 	sta SoundDuty,x
 	bne UpdateSoundChannel_SE_EntRest
@@ -776,6 +936,18 @@ SoundCommandNote_NoNoise:
 	and #~SF1_REST
 	sta SoundControlFlags1,x
 	;Get note length
+.ifdef VER_EUR
+	jmp GetNoteLength
+SoundCommandNote_EntVol:
+	;Get note frequency
+	jsr GetNoteFrequency
+	lda $E2
+	sta SoundFreqLo,x
+	sta $EF
+	lda $E3
+	sta SoundFreqHi,x
+	sta $F0
+.else ;VER_USA
 	jsr GetNoteLength
 	;Get note frequency
 	jsr GetNoteFrequency
@@ -785,6 +957,7 @@ SoundCommandNote_NoNoise:
 	lda $E3
 	sta SoundFreqHi,x
 	sta $EE
+.endif
 	;Init echo buffer
 	jsr InitEchoBuffer
 	;Init instrument pitch
@@ -841,23 +1014,41 @@ UpdateSoundPitch:
 	bcs UpdateSoundPitch_Down
 	;Shift pitch up
 	sec
+.ifdef VER_EUR
+	lda $EF
+	sbc $E2
+	sta $EF
+	lda $F0
+	sbc #$00
+	sta $F0
+.else ;VER_USA
 	lda $ED
 	sbc $E2
 	sta $ED
 	lda $EE
 	sbc #$00
 	sta $EE
+.endif
 UpdateSoundPitch_Exit:
 	rts
 UpdateSoundPitch_Down:
 	;Shift pitch down
 	clc
+.ifdef VER_EUR
+	lda $EF
+	adc $E2
+	sta $EF
+	lda $F0
+	adc #$00
+	sta $F0
+.else ;VER_USA
 	lda $ED
 	adc $E2
 	sta $ED
 	lda $EE
 	adc #$00
 	sta $EE
+.endif
 	rts
 
 InitInstrumentPitch:
@@ -1045,19 +1236,33 @@ ApplyInstrumentPitch:
 	sec
 	lda SoundInst2FreqLo,x
 	sbc SoundInst2Pitch,x
+.ifdef VER_EUR
+	sta $EF
+	lda SoundInst2FreqHi,x
+	sbc #$00
+	sta $F0
+.else ;VER_USA
 	sta $ED
 	lda SoundInst2FreqHi,x
 	sbc #$00
 	sta $EE
+.endif
 	jmp ApplyInstrumentPitch_RestY
 ApplyInstrumentPitch_Down:
 	;Shift pitch down
 	lda SoundInst2FreqLo,x
 	adc SoundInst2Pitch,x
+.ifdef VER_EUR
+	sta $EF
+	lda SoundInst2FreqHi,x
+	adc #$00
+	sta $F0
+.else ;VER_USA
 	sta $ED
 	lda SoundInst2FreqHi,x
 	adc #$00
 	sta $EE
+.endif
 ApplyInstrumentPitch_RestY:
 	;Restore Y register
 	ldy $E2
@@ -1135,10 +1340,18 @@ OutputSoundPitch:
 	cpx #$00
 	bne OutputSoundPitch_NoSq1
 	;Output sound pitch
+.ifdef VER_EUR
+	lda $EF
+.else ;VER_USA
 	lda $ED
+.endif
 	sta SoundSq1OutFreqLo
 OutputSoundPitch_NoSq1:
+.ifdef VER_EUR
+	lda $F0
+.else ;VER_USA
 	lda $EE
+.endif
 	cmp SoundOutFreqHi,x
 	beq OutputSoundPitch_PitchRepeat
 	ldx SoundCurChannel
@@ -1158,7 +1371,11 @@ OutputSoundPitch_PitchRepeat:
 	jsr CheckForChannel0
 	bcc UpdateEchoBuffer_Exit
 	;Set square sound registers
+.ifdef VER_EUR
+	lda $EF
+.else ;VER_USA
 	lda $ED
+.endif
 	sta SQ1_LO,y
 	rts
 
@@ -1234,11 +1451,27 @@ GetNoteLength_Loop:
 	dec $E2
 	bne GetNoteLength_Loop
 	sta SoundTimer,x
+.ifdef VER_EUR
+	;If sound timer not $01, skip PAL tempo check
+	cmp #$01
+	bne GetNoteLength_NoPALTempo
+	;Check for PAL tempo flag
+	lda SoundControlFlags1,x
+	and #SF1_PALTEMPO
+	beq GetNoteLength_NoPALTempo
+	lda SoundPALTempoFlag,x
+	bne GetNoteLength_NoPALTempo
+	;Set PAL tempo flag
+	lda #$01
+	sta SoundPALTempoFlag,x
+	jmp UpdateSoundChannel_NextByte
+GetNoteLength_NoPALTempo:
+.endif
 	;Check for triangle channel
 	cpx #$02
 	beq GetNoteLength_Tri
 	;Check for noise channel
-	bcs GetNoteVolume_Exit
+	bcs GetNoteVolume_NoSetVol
 	;Clear envelope hold timer
 	lda #$00
 	sta SoundEnvHTimer,x
@@ -1247,7 +1480,7 @@ GetNoteLength_Loop:
 	;Check for rest flag
 	lda SoundControlFlags1,x
 	and #SF1_REST
-	bne GetNoteVolume_Exit
+	bne GetNoteVolume_NoSetVol
 	;Set envelope mode
 	lda SoundInstrumentFlags,x
 	and #$03
@@ -1263,7 +1496,11 @@ GetNoteLength_Tri:
 	;Check for triangle channel
 	cpx #$02
 	bne GetNoteVolume
+.ifdef VER_EUR
+	jmp SoundCommandNote_EntVol
+.else ;VER_USA
 	rts
+.endif
 
 GetNoteVolume:
 	;Get note volume
@@ -1274,12 +1511,33 @@ GetNoteVolume:
 	lda SoundInstrumentFlags,x
 	and #SFI_INST1
 	beq GetNoteVolume_SetVol
-	bne GetNoteVolume_Exit
+	bne GetNoteVolume_NoSetVol
 GetNoteVolume_SetVol:
 	lda SoundVol,x
 	sta SoundOutVol,x
-GetNoteVolume_Exit:
+GetNoteVolume_NoSetVol:
+.ifdef VER_EUR
+	;Check for sound effect
+	lda SoundControlFlags1,x
+	and #SF1_SNDEFF
+	beq GetNoteVolume_NoSE
 	rts
+GetNoteVolume_NoSE:
+	;Check for rest flag
+	lda SoundControlFlags1,x
+	and #SF1_REST
+	bne GetNoteVolume_Rest
+	;Check for noise channel
+	cpx #$03
+	beq GetNoteVolume_Noise
+	jmp SoundCommandNote_EntVol
+GetNoteVolume_Rest:
+	jmp SoundCommand0x_EntVol
+GetNoteVolume_Noise:
+	jmp SoundCommandNote_Noise_EntVol
+.else ;VER_USA
+	rts
+.endif
 
 GetNoteEnvSLength:
 	;Get note envelope sustain length
@@ -1399,7 +1657,12 @@ SoundCommand0x:
 	ora #SF1_REST
 	sta SoundControlFlags1,x
 	;Get note length
+.ifdef VER_EUR
+	jmp GetNoteLength
+SoundCommand0x_EntVol:
+.else ;VER_USA
 	jsr GetNoteLength
+.endif
 	;Check for triangle/noise channels
 	cpx #$02
 	bcs SoundCommand0x_NoSq
@@ -1492,8 +1755,10 @@ SoundCommandEx:
 	and #$0F
 	cmp #$0F
 	bne SoundCommandEx_NoEF
+.ifndef VER_EUR
 	;Handle command byte $EF (set tempo)
 	jmp SoundCommandEF
+.endif
 SoundCommandEx_NoEF:
 	;Do jump table
 	clc
@@ -1654,12 +1919,14 @@ SoundCommandE9:
 
 ;$EF: Set tempo
 SoundCommandEF:
+.ifndef VER_EUR
 	;Set tempo
 	iny
 	lda (TempSoundDataPointer),y
 	sta SoundTempoReload
 	sta SoundTempoTimer
 	jmp UpdateSoundChannel_NextByte
+.endif
 
 SoundCommandInstrument_Sq_Inst:
 	;Set fade amount
@@ -1737,7 +2004,12 @@ SoundCommandInstrument_Noise:
 
 SoundCommandNote_Noise:
 	;Get note length
+.ifdef VER_EUR
+	jmp SoundCommandNote_NoNoise
+.else ;VER_USA
 	jsr GetNoteLength
+.endif
+SoundCommandNote_Noise_EntVol:
 	;Clear rest flag
 	lda SoundControlFlags1+3
 	and #~SF1_REST
@@ -2135,6 +2407,67 @@ SoundCommandExSEJumpTable:
 	.dw SoundCommandEC_SE	;$EC  Set repeat flag
 	.dw SoundCommandED_SE	;$ED  Set fade amount
 	.dw SoundCommandEF	;$EE  Set tempo
+.ifdef VER_EUR
+FrequencyTable:
+	.dw $0634,$05DB,$0587,$0537,$04EC,$04A5,$0463,$0423,$03E8,$03B0,$037B,$0349
+	.dw $031A,$02ED,$02C3,$029B,$0276,$0253,$0232,$0212,$01F4,$01D7,$01BD,$01A4
+	.dw $018D,$0177,$0161,$014E,$013A,$0129,$0118,$0108,$00F9,$00EB,$00DE,$00D1
+	.dw $00C6,$00BB,$00B0,$00A7,$009D,$0094,$008C,$0084,$007D,$0075,$006E,$0068
+	.dw $0063,$005D,$0058,$0052,$004E,$004A,$0045,$0041,$003E,$003B,$0036,$0034
+	.dw $0031,$002E,$002C,$0028,$0027,$0025,$0022,$0021,$001E,$001D,$001A,$0019
+AdjustPALFrequency:
+	;Get frequency value
+	lda #$00
+	sta $E8
+	sta $E5
+	lda $EF
+	sta $E9
+	sta $E6
+	lda $F0
+	and #$F7
+	sta $E4
+	sta $E7
+	;Multiply frequency by 7/8
+	ldx #$04
+	jsr AdjustPALFrequencySub
+	ldx #$04
+	jsr AdjustPALFrequencySub
+	;Round result frequency value
+	ldx SoundCurChannel
+	lda $E5
+	clc
+	adc #$80
+	lda $E6
+	adc #$00
+	sta $EF
+	lda $E7
+	adc #$00
+	ora #$08
+	sta $F0
+	rts
+AdjustPALFrequencySub:
+	;Shift right
+	lsr $E4
+	ror $E9
+	ror $E8
+	;Loop for each bit
+	dex
+	bne AdjustPALFrequencySub
+	;Subtract shifted result from frequency value
+	lda $E5
+	sec
+	sbc $E8
+	sta $E5
+	lda $E6
+	sbc #$00
+	sec
+	sbc $E9
+	sta $E6
+	lda $E7
+	sbc $E4
+	sta $E7
+	rts
+.else ;VER_USA
 FrequencyTable:
 	.dw $06AE,$064E,$05F4,$059E,$054E,$0501,$04B9,$0476,$0436,$03F9,$03C0,$038A
 	.dw $0357,$0327,$02FA,$02CF,$02A7,$0281,$025D,$023B,$021B,$01FD,$01E0,$01C5
@@ -2142,9 +2475,10 @@ FrequencyTable:
 	.dw $00D6,$00CA,$00BE,$00B4,$00AA,$00A0,$0097,$008F,$0087,$007F,$0077,$0071
 	.dw $006B,$0065,$005F,$0059,$0055,$0050,$004B,$0047,$0043,$0040,$003B,$0039
 	.dw $0035,$0032,$0030,$002C,$002A,$0028,$0025,$0024,$0021,$0020,$001D,$001B
+.endif
+
 SoundHeaderTablePointer:
 	.dw SoundHeaderTable-3
-
 LoadSoundSub:
 	;Check for sound effect
 	sta SoundLoadID
@@ -2188,6 +2522,34 @@ LoadSoundSub_SetSESq:
 LoadSoundSub_Music:
 	;Get sound header pointer
 	lda SoundHeaderTablePointer
+.ifdef VER_EUR
+	sta $EC
+	lda SoundHeaderTablePointer+1
+	sta $ED
+	lda #$03
+	sta $EE
+LoadSoundSub_MultLoop:
+	lda SoundLoadID
+	clc
+	adc $EC
+	sta $EC
+	lda #$00
+	adc $ED
+	sta $ED
+	dec $EE
+	bne LoadSoundSub_MultLoop
+	;Get number of channels
+	ldy #$00
+	lda ($EC),y
+	lsr
+	lsr
+	lsr
+	lsr
+	sta $EE
+LoadSoundSub_Loop:
+	;Get current channel
+	lda ($EC),y
+.else ;VER_USA
 	sta $EA
 	lda SoundHeaderTablePointer+1
 	sta $EB
@@ -2214,6 +2576,7 @@ LoadSoundSub_MultLoop:
 LoadSoundSub_Loop:
 	;Get current channel
 	lda ($EA),y
+.endif
 	and #$0F
 	tax
 	;If not level music, skip priority check
@@ -2241,6 +2604,15 @@ LoadSoundSub_PriC:
 LoadSoundSub_NoPri:
 	;Get sound pointers
 	iny
+.ifdef VER_EUR
+	lda ($EC),y
+	sta SoundPointerLo,x
+	sta $EA
+	iny
+	lda ($EC),y
+	sta SoundPointerHi,x
+	sta $EB
+.else ;VER_USA
 	lda ($EA),y
 	sta SoundPointerLo,x
 	sta $E8
@@ -2248,6 +2620,7 @@ LoadSoundSub_NoPri:
 	lda ($EA),y
 	sta SoundPointerHi,x
 	sta $E9
+.endif
 	;Init common state variables
 	lda #$0F
 	sta SoundOutFreqHi,x
@@ -2292,7 +2665,11 @@ LoadSoundSub_Noise:
 	sty $E2
 	;Set sound effect flag
 	ldy #$00
+.ifdef VER_EUR
+	lda ($EA),y
+.else ;VER_USA
 	lda ($E8),y
+.endif
 	ldy #SF1_SNDEFF
 	;Check for command byte $00-$0F (SFX rest/set base length)
 	cmp #$10
@@ -2300,8 +2677,16 @@ LoadSoundSub_Noise:
 	;Check for SFX square channel
 	cpx #$04
 	beq LoadSoundSub_SE2
-	;Clear fadeout state
+.ifdef VER_EUR
+	;Init PAL tempo compare/timer
+	lda #$06
+	sta SoundPALTempoCompare
 	lda #$00
+	sta SoundPALTempoTimer
+.else ;VER_USA
+	lda #$00
+.endif
+	;Clear fadeout state
 	sta SoundFadeoutCounter
 	sta SoundFadeout
 	sta SoundFadeoutTimer
@@ -2316,7 +2701,11 @@ LoadSoundSub_SE2:
 	lda SoundLoadID
 	sta SoundID,x
 	;Go to next channel
+.ifdef VER_EUR
+	dec $EE
+.else ;VER_USA
 	dec $EC
+.endif
 	bmi LoadSoundSub_Exit
 	iny
 	jmp LoadSoundSub_Loop
@@ -2327,6 +2716,10 @@ ClearSoundSub:
 	;Clear sound state
 	ldx #$00
 	lda #$00
+.ifdef VER_EUR
+	sta SoundPALTempoCompare
+	sta SoundPALTempoTimer
+.endif
 	sta BossDeathSoundFlag
 	sta SoundLoopingID
 	sta SoundFadeoutCounter
@@ -2770,12 +3163,32 @@ SoundHeaderTable:
 SndEff02Ch5Data:
 	.db $01,$A2,$41,$11
 	.db $FF
+
+.ifdef VER_EUR
+SndEff01Ch5Data:
+	.db $01,$B2,$04,$91,$51,$41,$31,$21
+	.db $FF
+.else ;VER_USA
 SndEff01Ch5Data:
 	.db $01,$B2,$05,$91,$51,$41,$31,$21
 	.db $FF
+.endif
+
 SndEff03Ch5Data:
 	.db $01,$7F,$5D,$38,$26,$16
 	.db $FF
+
+.ifdef VER_EUR
+SndEff04Ch5Data:
+	.db $05,$6B,$4B,$3B,$2B,$2B,$1B,$1B
+	.db $FF
+SndEff05Ch5Data:
+	.db $05,$89,$69,$59,$49,$39,$29,$19
+	.db $FF
+SndEff06Ch5Data:
+	.db $0A,$CE,$9E,$8E,$7E,$6E,$5E,$4E
+	.db $FF
+.else ;VER_USA
 SndEff04Ch5Data:
 	.db $05,$6B,$5B,$4B,$3B,$2B,$2B,$1B,$1B
 	.db $FF
@@ -2785,9 +3198,39 @@ SndEff05Ch5Data:
 SndEff06Ch5Data:
 	.db $0A,$CE,$BE,$9E,$8E,$7E,$6E,$5E,$4E
 	.db $FF
+.endif
+
 SndEff07Ch5Data:
 	.db $01,$78,$32,$21,$11
 	.db $FF
+
+.ifdef VER_EUR
+SndEff08Ch4Data:
+	.db $04,$B0,$81,$C3,$87,$B2,$34,$A3,$06,$A3,$28,$53,$C8
+	.db $FF
+SndEff08Ch5Data:
+	.db $02,$16,$48,$85,$00,$46,$24
+	.db $FF
+SndEff0ACh4Data:
+	.db $03,$30,$99,$00,$50,$95,$70,$9C,$90,$A8,$B0,$B5,$90,$C0,$70,$C4
+	.db $40,$C8,$30,$CC,$20,$D0,$10,$D4
+	.db $FF
+SndEff0ACh5Data:
+	.db $01,$00,$83,$98,$00,$83,$98,$64,$73,$84,$03,$95,$A6,$75,$64,$55
+	.db $44,$32,$24,$13
+	.db $FF
+SndEff0CCh4Data:
+	.db $01,$B0,$88,$90,$5A,$90,$5A,$60,$71,$60,$71,$20,$5A,$10,$71,$10
+	.db $71,$00,$00,$30,$5A,$20,$71,$20,$71,$10,$5A,$10,$5A,$00,$20,$71
+	.db $20,$71,$10,$5A,$10,$5A,$10,$71
+	.db $FF
+SndEff0DCh1Data:
+	.db $03,$70,$88,$00
+SndEff0DCh4Data:
+	.db $03,$70,$88,$80,$7F,$80,$5F,$80,$55,$80,$40,$30,$7F,$30,$5F,$30
+	.db $55,$30,$40,$10,$7F,$10,$5F,$10,$55,$10,$40
+	.db $FF
+.else ;VER_USA
 SndEff08Ch4Data:
 	.db $05,$B0,$81,$C3,$87,$B2,$34,$A3,$06,$A3,$28,$53,$C8
 	.db $FF
@@ -2812,12 +3255,25 @@ SndEff0DCh4Data:
 	.db $04,$70,$88,$80,$7F,$80,$5F,$80,$55,$80,$40,$30,$7F,$30,$5F,$30
 	.db $55,$30,$40,$10,$7F,$10,$5F,$10,$55,$10,$40
 	.db $FF
+.endif
+
 SndEff12Ch0Data:
 	.db $01,$B0,$88,$50,$97,$20,$97
 	.db $FF
 SndEff12Ch1Data:
 	.db $01,$B0,$88,$50,$7F,$20,$7F
 	.db $FF
+
+.ifdef VER_EUR
+SndEff14Ch1Data:
+	.db $04,$B0,$88,$00
+SndEff14Ch0Data:
+	.db $04,$B0,$88,$90,$6B,$90,$50,$90,$40,$90,$35,$20,$35,$10,$35
+	.db $FF
+SndEff1ACh5Data:
+	.db $01,$8A,$02,$00,$8A,$03,$77,$64,$53,$43,$31,$23,$11
+	.db $FF
+.else ;VER_USA
 SndEff14Ch1Data:
 	.db $05,$B0,$88,$00
 SndEff14Ch0Data:
@@ -2826,22 +3282,43 @@ SndEff14Ch0Data:
 SndEff1ACh5Data:
 	.db $01,$8A,$02,$00,$8A,$03,$77,$64,$53,$04,$43,$31,$23,$11
 	.db $FF
+.endif
+
 SndEff1BCh5Data:
 	.db $03,$77,$64,$53,$42,$31,$22,$11
 	.db $FF
+
+.ifdef VER_EUR
+SndEff1CCh5Data:
+	.db $02,$58,$00,$58,$86,$01,$DA,$03,$7C,$67,$39,$3A,$2B,$1A,$1B
+	.db $FF
+SndEff1DCh5Data:
+	.db $01,$B7,$00,$B7,$CA,$DC,$02,$CD,$BB,$68,$37,$28,$17,$16
+	.db $FF
+.else ;VER_USA
 SndEff1CCh5Data:
 	.db $02,$58,$00,$58,$86,$DA,$04,$7C,$67,$39,$3A,$2B,$1A,$1B
 	.db $FF
 SndEff1DCh5Data:
 	.db $01,$B7,$00,$B7,$CA,$DC,$03,$CD,$BB,$02,$68,$37,$28,$17,$16
 	.db $FF
+.endif
+
 SndEff40Ch4Data:
 	.db $02,$30,$8A,$E2,$4E,$EA,$8B,$00,$C0,$62,$90,$72,$50,$62,$30,$72
 	.db $20,$72,$10,$72
 	.db $FF
+
+.ifdef VER_EUR
+SndEff40Ch5Data:
+	.db $01,$DD,$00,$C7,$00,$02,$A7,$88,$89,$00,$39,$2A,$1B,$1B,$16
+	.db $FF
+.else ;VER_USA
 SndEff40Ch5Data:
 	.db $01,$DD,$00,$C7,$00,$02,$A7,$88,$89,$00,$39,$2A,$1B,$1B
 	.db $FF
+.endif
+
 SndEff1FCh1Data:
 	.db $07,$B0,$88,$EB,$01
 SndEff1FCh0Data:
@@ -2853,6 +3330,36 @@ SndEff1FCh0Data:
 	.db $86,$50,$87,$50,$88,$40,$89,$40,$8A,$30,$8B,$30,$8C,$20,$8D,$20
 	.db $8E,$10,$8F,$10,$90
 	.db $FF
+
+.ifdef VER_EUR
+SndEff23Ch4Data:
+	.db $01,$30,$88,$E0,$30,$00,$EA,$85,$E0,$30,$00,$C0,$21,$90,$15,$60
+	.db $15,$30,$14,$20,$14,$10,$14
+	.db $FF
+SndEff23Ch5Data:
+	.db $01,$EA,$B9,$00,$B7,$02,$94,$83,$73,$62,$42,$32,$21,$11
+	.db $FF
+SndEff21Ch4Data:
+	.db $01,$70,$81,$A3,$40,$00,$23,$40
+	.db $FF
+SndEff21Ch5Data:
+	.db $01,$D5,$00,$85,$25
+	.db $FF
+SndEff45Ch4Data:
+	.db $02,$B0,$83,$E2,$00,$00,$E8,$03,$D1,$90,$B1,$80,$A1,$70,$91,$80
+	.db $71,$90,$51,$A0,$41,$B0,$31,$C0,$21,$D0,$11,$D8
+	.db $FF
+SndEff45Ch5Data:
+	.db $01,$9D,$9C,$00,$8C,$00,$03,$9A,$89,$7A,$03,$5B,$4C,$3D,$2E,$1E
+	.db $FF
+SndEff25Ch4Data:
+	.db $03,$B0,$83,$E2,$00,$00,$D1,$90,$B1,$80,$E8,$02,$A1,$70,$91,$80
+	.db $71,$90,$51,$A0
+	.db $FF
+SndEff25Ch5Data:
+	.db $01,$9D,$9C,$00,$8C,$00,$03,$9A,$89,$02,$7A,$03,$5B,$4C,$02,$3D
+	.db $FF
+.else ;VER_USA
 SndEff23Ch4Data:
 	.db $01,$30,$88,$E0,$30,$00,$EA,$85,$E0,$30,$00,$C0,$21,$B0,$16,$90
 	.db $15,$60,$15,$30,$14,$20,$14,$10,$14
@@ -2880,6 +3387,8 @@ SndEff25Ch4Data:
 SndEff25Ch5Data:
 	.db $01,$9D,$9C,$00,$8C,$00,$03,$9A,$89,$7A,$04,$5B,$4C,$02,$3D
 	.db $FF
+.endif
+
 SndEff27Ch4Data:
 	.db $07,$B0,$92,$40,$96,$50,$93,$60,$90,$70,$8D,$80,$8A,$90,$87,$A0
 	.db $85,$90,$82,$30,$83,$10,$81
@@ -2896,10 +3405,20 @@ SndEff0FCh5Data:
 SndEff11Ch5Data:
 	.db $05,$A6,$00,$0A,$00,$00,$04,$A6,$00,$00,$00,$FB,$A6,$FE,$40
 	.db $FF
+
+.ifdef VER_EUR
+SndEff29Ch4Data:
+	.db $01,$B0,$85,$B0,$CA,$B0,$CA,$00,$00,$D0,$8A,$B0,$8A,$B0,$8A,$80
+	.db $8A,$80,$8A,$00,$70,$8A,$70,$8A,$60,$8A,$60,$8A,$00,$00,$40,$8A
+	.db $30,$8A,$30,$8A,$00,$00,$20,$8A,$10,$8A,$10,$8A
+	.db $FF
+.else ;VER_USA
 SndEff29Ch4Data:
 	.db $02,$B0,$85,$B0,$CA,$00,$D0,$8A,$B0,$8A,$80,$8A,$00,$70,$8A,$60
 	.db $8A,$00,$40,$8A,$30,$8A,$00,$20,$8A,$10,$8A
 	.db $FF
+.endif
+
 SndEff47Ch4Data:
 	.db $02,$70,$88,$D0,$2A,$00,$B0,$2A,$E9,$30,$A0,$2A,$00,$80,$27,$70
 	.db $27,$60,$27,$50,$27,$40,$27,$30,$27,$E8,$01,$00,$20,$27,$20,$27
@@ -2929,6 +3448,22 @@ SndEff2BCh4Data:
 SndEff2BCh5Data:
 	.db $01,$EC,$00,$EC,$AA,$64,$00,$03,$51,$43,$32,$04,$23,$12,$11
 	.db $FF
+
+.ifdef VER_EUR
+SndEff2DCh4Data:
+	.db $01,$B0,$88,$E1,$79,$00,$B1,$79,$31,$79,$21,$79,$00,$21,$79,$11
+	.db $79,$00,$11,$79
+	.db $FF
+SndEff2DCh5Data:
+	.db $01,$BB,$00,$5B,$19,$00,$1B,$00,$1C,$1B,$00,$1B
+	.db $FF
+SndEff2FCh4Data:
+	.db $03,$70,$8A,$C2,$C6,$00,$52,$E1,$32,$67,$12,$52
+	.db $FF
+SndEff2FCh5Data:
+	.db $04,$8B,$59,$4B,$3C,$2D,$1C
+	.db $FF
+.else ;VER_USA
 SndEff2DCh4Data:
 	.db $01,$B0,$88,$E1,$79,$00,$B1,$79,$00,$31,$79,$21,$79,$11,$79,$00
 	.db $21,$79,$11,$79,$00,$11,$79
@@ -2942,6 +3477,8 @@ SndEff2FCh4Data:
 SndEff2FCh5Data:
 	.db $05,$8B,$59,$4B,$3C,$2D,$1C
 	.db $FF
+.endif
+
 SndEff3ECh4Data:
 	.db $05,$70,$92,$C0,$90,$60,$90,$40,$90,$20,$90,$10,$90
 	.db $FF
@@ -2972,10 +3509,19 @@ SndEff42Ch5Data:
 	.db $03,$E8,$00,$E8,$D7,$00,$E8,$D7,$C6,$B5,$A4,$93,$72,$61,$52,$11
 	.db $61,$51,$31,$21,$11
 	.db $FF
+
+.ifdef VER_EUR
+SndEff1ECh4Data:
+	.db $03,$B0,$8B,$31,$50,$71,$20,$51,$00,$31,$20,$E8,$05,$11,$62,$11
+	.db $5E
+	.db $FF
+.else ;VER_USA
 SndEff1ECh4Data:
 	.db $04,$B0,$8B,$31,$50,$71,$20,$51,$00,$31,$20,$E8,$06,$11,$62,$11
 	.db $5E
 	.db $FF
+.endif
+
 SndEff16Ch4Data:
 	.db $01,$30,$88,$92,$36,$E9,$70,$53,$36,$E9,$30,$91,$DE,$E9,$70,$51
 	.db $DE,$E9,$30,$91,$E4,$E9,$70,$51,$E4
@@ -2991,6 +3537,17 @@ SndEff18Ch4Data:
 SndEff19Ch4Data:
 	.db $02,$30,$88,$63,$05,$E9,$70,$63,$1A
 	.db $FF
+
+.ifdef VER_EUR
+SndEff55Ch4Data:
+	.db $02,$70,$82,$FB,$E3,$60,$00,$FE,$03,$E3,$60,$04,$70,$83,$E1,$60
+	.db $D1,$60,$B1,$60,$81,$60,$51,$60,$31,$60,$11,$60
+	.db $FF
+SndEff55Ch5Data:
+	.db $02,$FB,$EA,$00,$FE,$03,$05,$B4,$94,$84,$74,$64,$54,$44,$33,$24
+	.db $13
+	.db $FF
+.else ;VER_USA
 SndEff55Ch4Data:
 	.db $02,$70,$82,$FB,$E3,$60,$00,$FE,$03,$E3,$60,$05,$70,$83,$E1,$60
 	.db $D1,$60,$B1,$60,$81,$60,$51,$60,$31,$60,$11,$60
@@ -2999,6 +3556,8 @@ SndEff55Ch5Data:
 	.db $03,$FB,$EA,$00,$FE,$03,$06,$B4,$94,$84,$74,$64,$54,$44,$33,$24
 	.db $13
 	.db $FF
+.endif
+
 SndEff31Ch4Data:
 	.db $02,$30,$89,$00,$00,$80,$60,$91,$90,$A0,$60,$81,$90,$70,$60,$61
 	.db $90,$50,$60,$41,$90,$60,$68,$71,$98,$60,$70,$51,$A0,$40,$78,$31
@@ -3014,12 +3573,22 @@ SndEff33Ch4Data:
 SndEff34Ch5Data:
 	.db $03,$56,$07,$CE,$BE,$AE,$9E,$8E,$7E,$6E,$2E,$1E
 	.db $FF
+
+.ifdef VER_EUR
+SndEff35Ch4Data:
+	.db $02,$30,$82,$B0,$3A,$20,$3A,$A0,$3A,$01,$30,$92,$D0,$16,$D0,$1A
+	.db $C0,$16,$C0,$1A,$A0,$16,$50,$16,$50,$1A,$30,$16,$30,$1A,$20,$16
+	.db $20,$1A,$00,$20,$16,$20,$1A,$10,$16,$10,$1A,$10,$16,$10,$1A
+	.db $FF
+.else ;VER_USA
 SndEff35Ch4Data:
 	.db $02,$30,$82,$B0,$3A,$20,$3A,$E8,$03,$A0,$3A,$01,$30,$92,$D0,$16
 	.db $D0,$1A,$C0,$16,$C0,$1A,$A0,$16,$A0,$1A,$50,$16,$50,$1A,$30,$16
 	.db $30,$1A,$20,$16,$20,$1A,$00,$00,$20,$16,$20,$1A,$10,$16,$10,$1A
 	.db $10,$16,$10,$1A
 	.db $FF
+.endif
+
 SndEff35Ch5Data:
 	.db $01,$BD,$00,$02,$76,$33,$22,$11,$FB,$22,$23,$FE,$03
 	.db $FF
@@ -3050,6 +3619,17 @@ SndEff3CCh5Data:
 	.db $01,$EE,$00,$02,$E5,$D3,$00,$02,$D1,$C2,$B1,$A1,$72,$51,$31,$21
 	.db $11
 	.db $FF
+
+.ifdef VER_EUR
+SndEff57Ch4Data:
+	.db $03,$B0,$8C,$B0,$60,$B0,$70,$B0,$60,$B0,$70,$B0,$50,$50,$60,$50
+	.db $70,$50,$50,$E8,$04,$30,$60,$30,$70,$30,$50,$10,$60,$10,$70,$10
+	.db $50
+	.db $FF
+SndEff57Ch5Data:
+	.db $02,$64,$66,$65,$64,$08,$53,$34,$15
+	.db $FF
+.else ;VER_USA
 SndEff57Ch4Data:
 	.db $04,$B0,$8C,$B0,$60,$B0,$70,$B0,$60,$B0,$70,$B0,$50,$50,$60,$50
 	.db $70,$50,$50,$30,$60,$30,$70,$30,$50,$10,$60,$10,$70,$10,$50
@@ -3057,6 +3637,8 @@ SndEff57Ch4Data:
 SndEff57Ch5Data:
 	.db $02,$64,$66,$65,$64,$0A,$53,$34,$15
 	.db $FF
+.endif
+
 SndEff59Ch4Data:
 	.db $02,$30,$89,$C3,$20,$00,$33,$20,$00,$00,$00,$43,$20,$00,$13,$20
 	.db $FF
@@ -3064,10 +3646,19 @@ SndEff59Ch5Data:
 	.db $02,$EA,$00,$E9,$00,$C2,$11,$96,$11,$85,$11,$64,$11,$53,$11,$42
 	.db $11,$00,$11,$22,$11
 	.db $FF
+
+.ifdef VER_EUR
+SndEff44Ch4Data:
+	.db $02,$B0,$8B,$70,$4E,$03,$B0,$8A,$00,$60,$C8,$E8,$06,$30,$A9,$10
+	.db $85,$10,$50
+	.db $FF
+.else ;VER_USA
 SndEff44Ch4Data:
 	.db $02,$B0,$8B,$70,$4E,$03,$B0,$8A,$00,$60,$C8,$E8,$07,$30,$A9,$10
 	.db $85,$10,$50
 	.db $FF
+.endif
+
 SndEff5BCh4Data:
 	.db $03,$70,$83,$41,$E0,$41,$20
 	.db $FF
@@ -3115,12 +3706,19 @@ SndEff65Ch5Data:
 	.db $01,$EC,$00,$EC,$33,$EE,$00,$07,$EC,$DA,$AD,$7B,$09,$5A,$3C,$2A
 	.db $1C
 	.db $FF
+
+.ifdef VER_EUR
+SndEff67Ch4Data:
+	.db $FF
+.else ;VER_USA
 SndEff67Ch4Data:
 	.db $0A,$30,$9C,$31,$20,$41,$20,$51,$20,$61,$20,$71,$20,$81,$1E,$91
 	.db $1C,$A1,$1A,$B1,$18,$C1,$16,$D1,$14,$C1,$12,$D1,$10,$C1,$0E,$C1
 	.db $0C,$C1,$0A,$A1,$08,$81,$06,$61,$04,$41,$02,$21,$00,$20,$FE,$10
 	.db $FC,$10,$FA
 	.db $FF
+.endif
+
 SndEff68Ch4Data:
 	.db $01,$B0,$88,$B0,$14,$00,$E8,$03,$B0,$20,$70,$14,$60,$14,$50,$14
 	.db $40,$14,$30,$14,$20,$14,$10,$14,$04,$30,$82,$30,$30,$40,$31,$50
@@ -3163,12 +3761,23 @@ SndEff63Ch5Data:
 	.db $01,$ED,$00,$D7,$00,$02,$C7,$A8,$99,$00,$59,$3A,$01,$00,$02,$2B
 	.db $1B,$1B
 	.db $FF
+
+.ifdef VER_EUR
+SndEff70Ch4Data:
+	.db $01,$B0,$88,$D0,$6B,$A0,$6B,$50,$6B,$30,$6B,$D0,$50,$A0,$50,$50
+	.db $6B,$30,$6B,$D0,$40,$A0,$40,$50,$50,$30,$50,$D0,$35,$A0,$35,$50
+	.db $35,$50,$35,$40,$35,$30,$35,$20,$40,$10,$35,$00,$E8,$05,$20,$6B
+	.db $20,$50,$10,$40,$10,$35
+	.db $FF
+.else ;VER_USA
 SndEff70Ch4Data:
 	.db $01,$B0,$88,$D0,$6B,$A0,$6B,$50,$6B,$30,$6B,$10,$6B,$D0,$50,$A0
 	.db $50,$50,$6B,$30,$6B,$10,$6B,$D0,$40,$A0,$40,$50,$50,$30,$50,$10
 	.db $50,$D0,$35,$A0,$35,$50,$35,$50,$35,$40,$35,$30,$35,$20,$40,$10
 	.db $35,$00,$00,$E8,$05,$20,$6B,$20,$50,$10,$40,$10,$35
 	.db $FF
+.endif
+
 SndEff71Ch4Data:
 	.db $04,$70,$93,$70,$6B,$80,$78,$90,$8F,$A0,$A0,$B0,$B4,$C0,$D6,$D0
 	.db $69,$D0,$76,$D0,$8D,$D0,$9E,$D0,$B2,$D0,$D4,$90,$67,$90,$74,$90
@@ -3176,10 +3785,18 @@ SndEff71Ch4Data:
 	.db $B0,$50,$D0,$30,$65,$30,$72,$30,$89,$30,$9A,$30,$AE,$30,$D0,$10
 	.db $63,$10,$70,$10,$88,$10,$98,$10,$AC,$10,$CE
 	.db $FF
+
+.ifdef VER_EUR
+SndEff72Ch4Data:
+	.db $04,$82,$88,$10,$D5,$10,$8E,$10,$A9,$02,$B0,$88,$E0,$6A,$D0,$6A
+	.db $B0,$6A,$90,$6A,$70,$6A,$50,$6A,$40,$6A
+	.db $FF
+.else ;VER_USA
 SndEff72Ch4Data:
 	.db $05,$82,$88,$10,$D5,$10,$8E,$10,$A9,$02,$B0,$88,$E0,$6A,$D0,$6A
 	.db $B0,$6A,$A0,$6A,$90,$6A,$70,$6A,$50,$6A,$40,$6A
 	.db $FF
+.endif
 
 ;INSTRUMENT DATA
 InstrumentVolumePointerTable:
@@ -3271,8 +3888,15 @@ InstrumentVol04Data:
 	.db $FF
 InstrumentVol05Data:
 	.db $FF
+
+.ifdef VER_EUR
+InstrumentVol06Data:
+	.db $11,$12,$13,$24,$65,$66,$67,$68,$FF
+.else ;VER_USA
 InstrumentVol06Data:
 	.db $11,$12,$13,$24,$75,$76,$77,$78,$FF
+.endif
+
 InstrumentVol07Data:
 	.db $1A,$18,$17,$13,$12,$11,$FF
 InstrumentVol08Data:
@@ -3349,8 +3973,15 @@ InstrumentPitch05Data:
 	.db $FB,$11,$21,$11,$10,$1F,$1E,$1F,$10,$FE,$FF
 InstrumentPitch06Data:
 	.db $1C,$1D,$1E,$1F,$10,$FF
+
+.ifdef VER_EUR
+InstrumentPitch07Data:
+	.db $FB,$3F,$30,$31,$10,$FE,$FF
+.else ;VER_USA
 InstrumentPitch07Data:
 	.db $FB,$4F,$30,$31,$10,$FE,$FF
+.endif
+
 InstrumentPitch08Data:
 	.db $FB,$51,$10,$2F,$20,$FE,$FF
 InstrumentPitch09Data:
@@ -3508,19 +4139,20 @@ Music7DCh2Data_Loop:
 Music7DCh3Data:
 	.db $E0,$05,$00,$81,$81,$72,$72,$C2,$12,$C2,$B2,$12
 	.db $FD
-	.db $25,$A1
+	.dw Music7DSection4
 	.db $C2,$12,$B2,$12,$B2,$12,$B2,$12,$91,$91,$82,$82,$72,$C2,$B2,$C2
 	.db $C2
+Music7DCh3Data_Loop:
 	.db $FD
-	.db $25,$A1
+	.dw Music7DSection4
 	.db $FD
-	.db $25,$A1
+	.dw Music7DSection4
 	.db $C2,$12,$B2,$12,$C2,$11,$11,$B2,$11,$11,$B2,$12,$12,$B2,$12,$C2
 	.db $B2,$C2,$FB,$C2,$12,$B2,$12,$FE,$03,$91,$91,$92,$81,$81,$72
 	.db $FD
-	.db $36,$A1
+	.dw Music7DSection5
 	.db $FD
-	.db $36,$A1
+	.dw Music7DSection5
 	.db $C2,$12,$B2,$12,$C2,$11,$11,$B2,$11,$11,$B2,$12,$12,$B2,$12,$12
 	.db $B2,$12,$FB,$C2,$11,$11,$B2,$11,$11,$FE,$02,$91,$91,$91,$91,$81
 	.db $81,$81,$81,$71,$71,$71,$71,$B2,$B1,$B1,$B2,$C2,$C2,$B2,$C2,$C2
@@ -3529,10 +4161,10 @@ Music7DCh3Data:
 	.db $B2,$C2,$C2,$FB,$B2,$12,$FE,$05,$92,$82,$72,$92,$92,$92,$82,$72
 	.db $C2,$11,$11,$B2,$11,$11,$B4,$91,$81,$71,$71
 	.db $FD
-	.db $36,$A1
+	.dw Music7DSection5
 	.db $FB,$C2,$12,$B2,$12,$FE,$02,$C2,$12,$92,$82,$C2,$92,$82,$72
 	.db $FE,$FF
-	.db $7C,$9F
+	.dw Music7DCh3Data_Loop
 Music7DSection0:
 	.db $61,$71,$81,$91,$A1,$91,$81,$71,$61,$51,$41,$31,$21,$31
 	.db $FF
@@ -4087,7 +4719,8 @@ Music91Ch3Data:
 	.db $FD
 	.dw Music91Section2
 	.db $C2,$11,$11,$B1,$12,$11,$11,$B1,$C2,$B2,$C1,$C1
-	.db $FD,$00,$B6
+	.db $FD
+	.dw Music91Section2
 	.db $FB,$B1,$FE,$04,$91,$91,$81,$81,$C1,$11,$C1,$11,$B2,$C1,$C1
 	.db $FE,$FF
 	.dw Music91Ch3Data
@@ -4414,6 +5047,13 @@ MusicA1Section1:
 	.db $FF
 
 ;UNUSED SPACE
+.ifdef VER_EUR
+	;$19 bytes of free space available
+	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+
+	.org $C080
+.else
 	;$75 bytes of free space available
 	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
 	;.db $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF
@@ -4425,3 +5065,4 @@ MusicA1Section1:
 	;.db $FF,$FF,$FF,$FF,$FF
 
 	.org $C000
+.endif

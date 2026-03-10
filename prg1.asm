@@ -99,7 +99,7 @@ GetHUDPosition_Bottom:
 	;Set HUD position 0
 	lda #$02
 GetHUDPosition_Set:
-	;If current HUD position = new HUD position, don't update HUD position
+	;If current HUD position == new HUD position, don't update HUD position
 	cmp HUDPositionCur
 	beq GetHUDPosition_NoChange
 	;Update HUD position
@@ -1975,7 +1975,7 @@ RunGameSubmode_TitleInit:
 	jsr DisableIRQ
 	;Clear ZP $40-$CF
 	jsr ClearZP_40
-	;Set vertical mirroring mode
+	;Set vertical mirroring
 	sta $A000
 	;Clear title cursor position
 	sta TitleCursorPos
@@ -2025,7 +2025,11 @@ RunGameSubmode_TitleInit_SpLoop:
 	and #$FC
 	sta TempMirror_PPUCTRL
 	;Set timer
+.ifdef VER_EUR
+	lda #$66
+.else ;VER_USA
 	lda #$80
+.endif
 	sta GameModeTimer
 	;Write title screen nametable
 	ldx #$06
@@ -2082,10 +2086,18 @@ TitlePocketBulgeSub0:
 	lda #$03
 	sta TitleCounter
 	;Init loop timer
+.ifdef VER_EUR
+	lda #$1B
+.else ;VER_USA
 	lda #$20
+.endif
 	sta TitleTimer
 	;Set timer
+.ifdef VER_EUR
+	lda #$66
+.else ;VER_USA
 	lda #$80
+.endif
 	sta GameModeTimer
 	;Next task ($01: Wait)
 	inc TitleSubmode
@@ -2130,7 +2142,11 @@ TitlePocketBulgeSub2_NoSound:
 	lda TitlePocketBulgeEnemySprite,y
 	sta Enemy_Sprite,x
 	;Reset animation timer
+.ifdef VER_EUR
+	lda #$05
+.else ;VER_USA
 	lda #$06
+.endif
 	sta PocketBulgeAnimTimer,x
 TitlePocketBulgeSub2_SpNext:
 	;Loop for all slots
@@ -2142,7 +2158,11 @@ TitlePocketBulgeSub2_Next:
 	dec TitleCounter
 	beq TitlePocketBulgeSub2_Next2
 	;Set timer
+.ifdef VER_EUR
+	lda #$36
+.else ;VER_USA
 	lda #$40
+.endif
 	sta GameModeTimer
 	ldy TitleCounter
 	lda TitlePocketBulgeTimerTable,y
@@ -2152,7 +2172,11 @@ TitlePocketBulgeSub2_Next:
 	rts
 TitlePocketBulgeSub2_Next2:
 	;Set timer
+.ifdef VER_EUR
+	lda #$36
+.else ;VER_USA
 	lda #$40
+.endif
 	sta GameModeTimer
 	;Next task ($00: Init)
 	lda #$00
@@ -2165,17 +2189,26 @@ TitlePocketBulgeSub2_Next2:
 
 TitlePocketBulgeEnemySprite:
 	.db $7F,$80,$81,$80,$00,$00,$00,$00,$00,$00,$00,$00
+.ifdef VER_EUR
+TitlePocketBulgeTimerTable:
+	.db $00,$6B,$43
+.else ;VER_USA
 TitlePocketBulgeTimerTable:
 	.db $00,$80,$50
+.endif
 
 ;$05: Monsters out
 RunGameSubmode_TitleMonstersOut:
 	;Do jump table
 	lda TitleSubmode
+.ifdef VER_EUR
+	bne TitleMonstersOutSub1
+.else ;VER_USA
 	jsr DoJumpTable
 TitleMonstersOutJumpTable:
 	.dw TitleMonstersOutSub0	;$00  Init
 	.dw TitleMonstersOutSub1	;$01  Main
+.endif
 ;$00: Init
 TitleMonstersOutSub0:
 	;Init animation offset
@@ -2188,8 +2221,15 @@ TitleMonstersOutSub0:
 	lda #$06
 	sta MonstersOutAnimOffs+3
 	;Set timer
+.ifdef VER_EUR
+	lda #$01
+	sta GameModeTimer+1
+	lda #$99
+	sta GameModeTimer
+.else
 	lda #$02
 	sta GameModeTimer+1
+.endif
 	;Next task ($01: Main)
 	inc TitleSubmode
 	;Load palette
@@ -2493,10 +2533,17 @@ RunGameSubmode_TitleLogoIn_Next:
 	inc GameSubmode
 	rts
 
+.ifdef VER_EUR
+TitleLogoPaletteData:
+	.db $0F,$0F,$00
+	.db $06,$0F,$10
+	.db $16,$01,$20
+.else ;VER_USA
 TitleLogoPaletteData:
 	.db $06,$07,$00
 	.db $16,$17,$10
 	.db $16,$27,$10
+.endif
 
 ;$0C: Monster peek
 RunGameSubmode_TitleMonsterPeek:
@@ -2628,7 +2675,7 @@ RunGameSubmode_TitleMain_NoStart:
 	;Get new animation offset based on random value
 	lda PRNGValue
 	and #$07
-	;If new animation offset = previous animation offset, increment
+	;If new animation offset == previous animation offset, increment
 	cmp TitleSubmode
 	bne RunGameSubmode_TitleMain_New
 	adc #$01
@@ -2838,12 +2885,21 @@ TitleMainInit:
 	jsr LoadPalette
 	lda #$25
 	jsr LoadPalette
+.ifdef VER_EUR
+	lda #$16
+	sta PaletteBuffer+$0D
+	lda #$01
+	sta PaletteBuffer+$0E
+	lda #$20
+	sta PaletteBuffer+$0F
+.else ;VER_USA
 	lda #$16
 	sta PaletteBuffer+$0D
 	lda #$27
 	sta PaletteBuffer+$0E
 	lda #$10
 	sta PaletteBuffer+$0F
+.endif
 	jsr WritePalette
 	;Init IRQ buffer
 	lda #$A9
@@ -2958,6 +3014,28 @@ DemoData:
 ;;;;;;;;;;;;;;;;
 ;NAMETABLE DATA;
 ;;;;;;;;;;;;;;;;
+.ifdef VER_EUR
+Nametable06Data:
+	.dw $2000
+	.db $7E,$00,$7E,$00,$7E,$00,$0E,$00,$C3,$C1,$0B,$C3,$82,$CD,$CE,$10
+	.db $00,$C3,$C4,$0B,$C6,$82,$CF,$D0,$10,$00,$C3,$C7,$0B,$C9,$82,$D1
+	.db $D2,$10,$00,$C3,$CA,$0B,$CC,$82,$D3,$D4,$10,$00,$82,$C4,$D5,$0C
+	.db $C6,$82,$DF,$D0,$10,$00,$C3,$C4,$0B,$C6,$82,$CF,$D0,$10,$00,$C3
+	.db $C4,$0B,$C6,$82,$CF,$D0,$10,$00,$C3,$C4,$0B,$C6,$82,$DF,$D0,$10
+	.db $00,$82,$C4,$D5,$0C,$C6,$82,$DF,$D0,$10,$00,$C3,$C4,$0B,$C6,$82
+	.db $CF,$D0,$10,$00,$83,$C4,$D6,$D7,$0A,$C6,$83,$D7,$E0,$D0,$10,$00
+	.db $C4,$D8,$81,$DB,$06,$D7,$85,$DB,$DB,$DA,$E1,$E2,$10,$00,$C3,$DC
+	.db $81,$D9,$08,$DA,$81,$E1,$C3,$E3,$12,$00,$C3,$DC,$81,$D9,$04,$DA
+	.db $81,$E1,$C3,$E3,$16,$00,$C3,$DC,$82,$D9,$E1,$C3,$E3,$1A,$00,$84
+	.db $DC,$DD,$E4,$E5,$4E,$00,$1A,$00,$04,$55,$04,$00,$04,$55,$04,$00
+	.db $04,$55,$04,$00,$04,$55,$0A,$00,$7E,$00,$0C,$00,$CB,$67,$81,$01
+	.db $14,$00,$CB,$F0,$1A,$00,$C4,$EC,$82,$9F,$C0,$37,$00,$C4,$FB,$C4
+	.db $72,$16,$00,$82,$FB,$FF,$C4,$40,$C6,$76,$13,$00,$C7,$44,$C7,$7C
+	.db $11,$00,$C8,$4B,$C8,$83,$10,$00,$C6,$53,$85,$00,$59,$8B,$00,$00
+	.db $C5,$8C,$11,$00,$C7,$5A,$C7,$91,$13,$00,$C6,$61,$C7,$98,$7E,$00
+	.db $7E,$00,$7E,$00,$79,$00,$84,$0C,$CF,$FF,$33,$14,$00,$04,$AA,$1A
+	.db $00,$00
+.else ;VER_USA
 Nametable06Data:
 	.dw $2000
 	.db $7E,$00,$7E,$00,$7E,$00,$0E,$00,$C3,$C1,$0B,$C3,$82,$CD,$CE,$10
@@ -2978,6 +3056,7 @@ Nametable06Data:
 	.db $C5,$8C,$11,$00,$C7,$5A,$C7,$91,$13,$00,$C6,$61,$C7,$98,$7E,$00
 	.db $7E,$00,$7E,$00,$6F,$00,$0A,$00,$04,$FF,$14,$00,$04,$AA,$1A,$00
 	.db $00
+.endif
 
 ;UNUSED SPACE
 	;$01 bytes of free space available
